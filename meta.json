@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.2.21",
+  "version": "1.2.22",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -76,7 +76,7 @@
     "independent_defect_rechecks_passed": 2,
     "post_update_template_checks": 3,
     "preroll_preserves_source_owners": true,
-    "production_trial_status": "Historical12.25second photographic fullfilm/portable ready skill verified separately. Current portrait source first104owned frames passed actual native/action/prop/subtitle review and minimal9:16 envelope verified by complete107contentRGB/PTS equality; whole new film remains in production. Current compiler reference-provenance tests65pass; current runner48checks passed; dual-picture cloud pilot still pending.",
+    "production_trial_status": "Historical12.25second photographic fullfilm/portable ready skill verified separately. Current portrait30.041667second review copy technically verified721frames and1297original AAC packets, but human rejected original-reference identity likeness; prior first-window identity verdict revoked. New original-only identity pilots required before corrected-film qualification.",
     "source_time_scale_verified_offline": true,
     "cloud_pilot_visual_verified": true,
     "automatic_download_recovery_tests": 8,
@@ -125,12 +125,12 @@
         1089,
         1936
       ],
-      "native_and_actual_playback_review": "passed-first-window-only",
+      "native_and_actual_playback_review": "historical-first-window-observation; identity-verdict-revoked-by-user",
       "complete_content_rgb_and_pts_proof_frames": 107,
-      "whole_new_film": "pending",
-      "scope": "Current production pilot with explicit source reference, user-scoped target identity dossier and positive current empty-surface prose. No universal model quality claim."
+      "whole_new_film": "failed-original-reference-identity; newidentitypilots-pending",
+      "scope": "Canvas/frame evidence remains valid. Previous visual identity approval did not sufficiently establish likeness to original human-supplied portrait and was revoked after user feedback; no current film quality claim."
     },
-    "current_release_note": "Documentation-only conditional guide/caption/final-encode lessons. Runtime and tests unchanged. Current30.041667second portrait review copy actually decoded721frames with original1297AAC packet payloads/times verified; full native/original-speed visual and dedicated ready status remain pending. No universal quality guarantee."
+    "current_release_note": "Documentation-only original-identity authority and whole-film feedback correction. Current portrait review copy retains actual721frame/1297AAC technical evidence, but human rejected identity likeness; prior current-source visual identity verdicts revoked. Three new literal-original identity pilots running. Runtime unchanged; historical12.25second scope remains separate."
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -175,7 +175,8 @@
     "Observed localFFmpeg7.1 native crashes in audio mux with empty stderr; explicit scalar option now also sets subprocess-cpuflags0, detached stdin and numeric error exit.16current scalar mux reproductions and68full Windows media/template checks passed; no global CPU or system change.",
     "Actual photo bounds alone do not prove head/body integration. Current soft outer blend with fully covered head core removed observed rectangle in a50frame native review; full original-speed still pending. No fixed blend width.",
     "Actual image-edited clean cloth/background can remove an opaque blank caption plate before original glyph/time restoration. Declared frame-local box/halo and outside RGB equality, actual panel bounds and cross-window caption material review retained.",
-    "Actual source color enums include unspecified values. Full independent final decode, numeric native exit diagnosis and reuse of verified raw owners prevent unnecessary cloud reruns; short successful probes and process exit alone do not prove fullfilm."
+    "Actual source color enums include unspecified values. Full independent final decode, numeric native exit diagnosis and reuse of verified raw owners prevent unnecessary cloud reruns; short successful probes and process exit alone do not prove fullfilm.",
+    "Original identity is an independent quality gate: compare literal user photo, source actor and current output; changed hairstyle/costume/action does not prove identity. Derived and previously approved generated references are rechecked against original authority; broad human identity rejection revokes corresponding identity conclusions, preserving source technical facts."
   ],
   "publishing": {
     "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",
