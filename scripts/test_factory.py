@@ -110,6 +110,42 @@ class FactoryIntegration(unittest.TestCase):
         self.assertTrue((self.project/'evidence/frame_000000.png').exists())
         self.assertEqual(self.source['source']['sha256'],media.signature(self.video)['sha256'])
 
+    def test_default_legacy_excludes_over_ten_seconds_without_a_fixed_five_second_default(self):
+        job=copy.deepcopy(self.job)
+        job['profile']['limits']['frame_counts']=[121,144]
+        with self.assertRaisesRegex(ValueError,'hard cap 10 seconds'):
+            factory.default_plan(self.source,self.analysis,job)
+        job['profile']['limits']['frame_counts'].insert(0,72)
+        self.assertEqual(factory.default_plan(self.source,self.analysis,job)['windows'][0]['generation_frames'],72)
+
+    def test_manual_generation_cap_includes_context_preroll_and_tail_padding(self):
+        plan=factory.default_plan(self.source,self.analysis,self.job)
+        w=plan['windows'][0];w.update(generation_frames=120,duration='10')
+        w['source_projection']=media.project_frames(self.source['video'],w['context_interval'],'12',120)
+        factory.validate_plan(self.source,self.analysis,plan)
+        for frames,duration in [(121,'10'),(120,'11')]:
+            with self.subTest(frames=frames,duration=duration):
+                w.update(generation_frames=frames,duration=duration)
+                w['source_projection']=media.project_frames(self.source['video'],w['context_interval'],'12',frames)
+                with self.assertRaisesRegex(ValueError,'10-second production cap'):
+                    factory.validate_plan(self.source,self.analysis,plan)
+
+    def test_standard_six_second_shot_stays_whole_but_eleven_seconds_requires_split(self):
+        video=video_fixture(self.temp/'long-standard.mp4',fps=12,pts=list(range(72)))
+        source=factory.ingest(self.temp/'long-standard-run',video,DEPS,SCALAR)
+        analysis={'roles':[{'slot':'A','appearances':[[0,72]]}],
+                  'shots':[{'id':'s1','start':0,'end':72,'roles':['A'],'description_en':'{{A}} follows original motion.'}]}
+        job={'profile':{'kind':'standard-h3','limits':{}},'references':self.job['references']}
+        plan=factory.default_plan(source,analysis,job)
+        self.assertEqual(len(plan['windows']),1)
+        self.assertEqual(plan['windows'][0]['source_interval'],[0,72])
+        self.assertEqual(plan['windows'][0]['duration'],'6')
+        video=video_fixture(self.temp/'eleven-standard.mp4',fps=12,pts=list(range(132)))
+        source=factory.ingest(self.temp/'eleven-standard-run',video,DEPS,SCALAR)
+        analysis['roles'][0]['appearances']=[[0,132]];analysis['shots'][0]['end']=132
+        with self.assertRaisesRegex(ValueError,'hard cap 10 seconds'):
+            factory.default_plan(source,analysis,job)
+
     def test_source_same_resume_and_new_source_rejected(self):
         self.assertEqual(factory.ingest(self.project,self.video,DEPS,SCALAR)['source'],self.source['source'])
         other=video_fixture(self.temp/'other.mp4',pts=[0])

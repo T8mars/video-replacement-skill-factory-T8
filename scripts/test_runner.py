@@ -61,6 +61,7 @@ class RunnerTests(unittest.TestCase):
         self.ledger = Ledger(self.root / 'private' / 'tasks.sqlite', self.clock)
         self.entry = {'window_id': 'w001', 'input_digest': 'input1', 'video_path': 'video.mp4',
                       'reference_paths': ['person.png'], 'prompt_path': 'prompt.txt', 'generation_frames': 22,
+                      'duration':'11/12','source_contract':{'window':{'generation_fps':'24'}},
                       'profile': {'kind': 'legacy-ai-app', 'app_id': '2107844752011010050', 'quality_evidence': 'case-verified'}}
         self.validate = lambda p, e: e['input_digest']
     def tearDown(self):
@@ -76,6 +77,20 @@ class RunnerTests(unittest.TestCase):
         self.assertIn({'nodeId':'115','fieldName':'aspect_ratio','fieldValue':'9:16 (Portrait Widescreen)'},nodes)
         self.assertIn({'nodeId':'115','fieldName':'megapixels','fieldValue':'2'},nodes)
         self.assertEqual(next(n['fieldValue'] for n in nodes if n['nodeId']=='326'),'22')
+    def test_standard_preflight_never_accepts_duration_above_ten_seconds(self):
+        self.entry.update(duration='10',generation_frames=240,profile={'kind':'standard-h3'},production_authorized=True,
+                          source_contract={'window':{'generation_fps':'24'}},
+                          semantic_review={'status':'passed','input_digest':'input1'})
+        with patch('factory.compute_input_digest',return_value='input1'):
+            self.assertEqual(preflight(self.project,self.entry),'input1')
+            self.entry.update(duration='11',generation_frames=264)
+            with self.assertRaisesRegex(ValueError,'10-second production cap'):preflight(self.project,self.entry)
+    def test_legacy_preflight_checks_actual_frame_clock_not_only_declared_seconds(self):
+        self.entry.update(duration='4',generation_frames=22,production_authorized=True,
+                          source_contract={'window':{'generation_fps':'1'}},
+                          semantic_review={'status':'passed','input_digest':'input1'})
+        with patch('factory.compute_input_digest',return_value='input1'):
+            with self.assertRaisesRegex(ValueError,'10-second production cap'):preflight(self.project,self.entry)
     def test_unset_resolution_preserves_existing_request(self):
         aid=self.submit(Fake())
         request=json.loads(self.ledger.row(aid)['request'])
@@ -229,7 +244,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.ledger.summary('default')['attempts'], [])
     def test_projection_review_is_independent_of_semantic_review(self):
         entry = dict(self.entry, input_digest='digest', semantic_review={'status':'passed','input_digest':'digest'}, production_authorized=True,
-                     source_contract={'window':{'source_projection':{'requires_temporal_review':True}}})
+                     source_contract={'window':{'generation_fps':'24','source_projection':{'requires_temporal_review':True}}})
         with patch('factory.compute_input_digest', return_value='digest'):
             with self.assertRaises(ValueError):
                 preflight(self.project, entry)

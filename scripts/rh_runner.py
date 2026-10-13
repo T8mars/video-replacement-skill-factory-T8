@@ -396,7 +396,7 @@ class Ledger:
 
 
 def preflight(project, entry):
-    from factory import compute_input_digest
+    from factory import compute_input_digest, validate_generation_duration
     digest = compute_input_digest(Path(project), entry)
     if digest != entry.get('input_digest'):
         raise ValueError('Request inputs changed; run prepare and semantic review again')
@@ -413,6 +413,10 @@ def preflight(project, entry):
     current_job = json.loads((Path(project) / 'job.json').read_text(encoding='utf-8'))
     if current_job.get('production_authorized') is not True:
         raise ValueError('Current job has no production authorization; stale queue authorization cannot submit')
+    window=(entry.get('source_contract') or {}).get('window',{})
+    if 'generation_fps' not in window or 'duration' not in entry:
+        raise ValueError('Request requires an explicit generation frame clock and duration')
+    validate_generation_duration({**window,'generation_frames':entry['generation_frames'],'duration':entry['duration']})
     for k in ('video_path', 'prompt_path'):
         asset(project, entry[k])
     refs = [asset(project, p) for p in entry['reference_paths']]
