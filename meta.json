@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.2.20",
+  "version": "1.2.21",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -130,7 +130,7 @@
       "whole_new_film": "pending",
       "scope": "Current production pilot with explicit source reference, user-scoped target identity dossier and positive current empty-surface prose. No universal model quality claim."
     },
-    "current_release_note": "Background-first source/native-frame/PTS review honors no-desktop-input preference; real-speed playback remains separate and final-ready gates unchanged. Actual-imagegen panel content bounds checked before Video1. Current Windows68media/template tests pass with explicit externalFFmpeg scalar option;51runner checks retained from unchanged runtime. Three-hypothesis user production policy retained; whole newportrait film pending."
+    "current_release_note": "Documentation-only conditional guide/caption/final-encode lessons. Runtime and tests unchanged. Current30.041667second portrait review copy actually decoded721frames with original1297AAC packet payloads/times verified; full native/original-speed visual and dedicated ready status remain pending. No universal quality guarantee."
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -172,7 +172,10 @@
     "Account-wide target3 as well as cap3; normal three-window batches and tail1-2scope three-hypothesis repairs, independent pilot branches, no repeat paid filler, approvals and actual owner/seam QA retained; new standalone skills inherit entry policy.",
     "User-requested background-only media review avoids desktop player and input injection. Actual contiguous native source/PTS review can approve production inputs; original-speed playback evidence is recorded separately and final dynamic-ready requirements retained.",
     "Actual cloud headguide rectangle borders traced to assumed globally scaled contact-sheet panel coordinates; use actual photo extents and personally review every native edge/headbody connection before production.",
-    "Observed localFFmpeg7.1 native crashes in audio mux with empty stderr; explicit scalar option now also sets subprocess-cpuflags0, detached stdin and numeric error exit.16current scalar mux reproductions and68full Windows media/template checks passed; no global CPU or system change."
+    "Observed localFFmpeg7.1 native crashes in audio mux with empty stderr; explicit scalar option now also sets subprocess-cpuflags0, detached stdin and numeric error exit.16current scalar mux reproductions and68full Windows media/template checks passed; no global CPU or system change.",
+    "Actual photo bounds alone do not prove head/body integration. Current soft outer blend with fully covered head core removed observed rectangle in a50frame native review; full original-speed still pending. No fixed blend width.",
+    "Actual image-edited clean cloth/background can remove an opaque blank caption plate before original glyph/time restoration. Declared frame-local box/halo and outside RGB equality, actual panel bounds and cross-window caption material review retained.",
+    "Actual source color enums include unspecified values. Full independent final decode, numeric native exit diagnosis and reuse of verified raw owners prevent unnecessary cloud reruns; short successful probes and process exit alone do not prove fullfilm."
   ],
   "publishing": {
     "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",
