@@ -155,6 +155,16 @@
       "id": "three-active-tail-repair-policy",
       "status": "codex-orchestrated-offline-runner-verified",
       "scope": "Codex maintains three approved active generation jobs; normal3windows or final1-2failedscope three distinct isolated hypotheses sharing one ledger/dispatcher. Runtime cap/pilot/recovery guards unchanged; actual cloud and visual approvals remain separate."
+    },
+    {
+      "id": "background-only-media-review",
+      "status": "codex-orchestrated",
+      "scope": "Honor user no-desktop-input preference. Actual full native source-pose/PTS observations permit input approvals; contiguous-frame evidence is separate from real-speed playback. No automatic visual pass and no final-ready gate relaxation."
+    },
+    {
+      "id": "source-guide-panel-boundaries-and-external-scalar",
+      "status": "mixed-codex-review-and-offline-verified",
+      "scope": "Actual-photo-boundary cropping and native everyguide edge checks are Codex decisions. Explicit Windows scalar option now reaches derived-audio FFmpeg subprocess, with noninteractive stdin and numeric error exit;68actualmedia/template checks passed. No automatic cloud quality approval."
     }
   ]
 }

@@ -1036,6 +1036,8 @@ def build_skill(project, skills_root, status='draft', display_name=None):
             '只剩1～2个问题窗时准备3个有实质差异的修复候选，独立run、input digest和任务记录共享同一账本与唯一恢复调度器。'
             '已通过且签名未变的窗口冻结；空槽补已审批方案，队列忙等待，已受理或未知任务沿原记录恢复。'
             '按references/workflow.md完成每候选审批及试窗门槛；实际native风险帧、原速完整保留区间和接点通过后才选用。全部通过后停止新增。\n\n'
+            '媒体检查优先后台完成；用户要求后台时不操作桌面播放器或鼠标键盘。完整连续帧审核与实际原速播放分别记录，'
+            '后台源帧/PTS和身份观察可用于输入审批，不能虚构动态通过或放宽最终ready门槛。\n\n'
             'Create a new run outside this skill folder. Run scripts/factory.py instantiate --skill <absolute-skill-folder> --project <run-directory>. '
             'Then provide job.json references/profile, '
             'run prepare, personally approve prompt semantics, use the included rh_runner.py for the authorized production run, '

@@ -332,7 +332,10 @@ def make_input(source_path, output_path, source_video, context, generation_frame
     duration = Fraction(generation_frames, 1) / fps
     with av.open(str(source_path)) as source:
         has_audio = bool(source.streams.audio)
-    args = [ffmpeg, '-nostdin', '-v', 'error', '-threads', '1', '-i', str(temporary)]
+    args = [ffmpeg, '-nostdin', '-v', 'error', '-threads', '1']
+    if scalar_cpu:
+        args += ['-cpuflags', '0']
+    args += ['-i', str(temporary)]
     if has_audio:
         # Stretch only the derived audio to follow the explicitly slowed source motion.
         # Final assembly still remuxes the original packets at their original times.
@@ -351,9 +354,9 @@ def make_input(source_path, output_path, source_video, context, generation_frame
     else:
         args += ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-map', '0:v:0', '-map', '1:a:0']
     args += ['-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', str(float(duration)), str(output_path)]
-    result = subprocess.run(args, capture_output=True, text=True)
+    result = subprocess.run(args, capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if result.returncode:
-        raise ValueError(f'Derived audio mux failed: {result.stderr[-1000:]}')
+        raise ValueError(f'Derived audio mux failed (exit {result.returncode}): {result.stderr[-1000:]}')
     report = inspect(output_path, deps, scalar_cpu)
     if report['video']['frame_count'] != generation_frames or not report['audio_streams']:
         raise ValueError('Derived input failed frame/audio verification')

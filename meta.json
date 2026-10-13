@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.2.19",
+  "version": "1.2.20",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -55,7 +55,15 @@
       "passed_windows": "freeze unchanged accepted versions",
       "all_passed": "stop new submissions; recover already accepted tasks",
       "input_and_visual_gates": "unchanged; no automatic hypothesis creation or visual approval"
-    }
+    },
+    "media_review": {
+      "preferred_execution": "background decoding, PTS mapping and personally viewed native contiguous frames",
+      "user_background_only": "no desktop player or mouse/keyboard input",
+      "input_approval": "may use actual complete source-frame/PTS and identity observations with honest loss disclosure",
+      "separate_original_speed_evidence": true,
+      "final_ready_dynamic_gate": "unchanged; missing evidence stays pending"
+    },
+    "scalar_cpu_scope": "Current WindowsPyAV and derived-audio FFmpeg subprocess; default otherplatform path unchanged."
   },
   "validation": {
     "cloud_generation_performed": true,
@@ -122,7 +130,7 @@
       "whole_new_film": "pending",
       "scope": "Current production pilot with explicit source reference, user-scoped target identity dossier and positive current empty-surface prose. No universal model quality claim."
     },
-    "current_release_note": "Three account-wide active generation target with hard cap3; final1-2 failed scopes get three distinct approved isolated repair hypotheses. Passed windows freeze; known/unknown IDs recover; busy queues wait. Runtime pilot guard retained. 68 media/template and51 runner regressions; actual new portrait fullfilm still pending."
+    "current_release_note": "Background-first source/native-frame/PTS review honors no-desktop-input preference; real-speed playback remains separate and final-ready gates unchanged. Actual-imagegen panel content bounds checked before Video1. Current Windows68media/template tests pass with explicit externalFFmpeg scalar option;51runner checks retained from unchanged runtime. Three-hypothesis user production policy retained; whole newportrait film pending."
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -161,7 +169,10 @@
     "Explicit standalone Video1 source performance/camera/time/scene definition and Subject/Picture provenance; replacement summary keeps source roles/positions and obeys face-only scope. Two meaningful local-order/scope regressions. Positive current empty-prop state plus effective identity clauses passed one portrait window; frozen custom prompts are not blindly overwritten on QA promotion.",
     "Authenticated read-only two-image app schema publishes115+214 aspects and139reference; whitelist both known apps for214, preserve unknown-app rejection and app-specific pilot isolation; sameidentity twoexpression reference does not add sourceactor.",
     "User production policy: segment by actual shot/natural action phase, no fixed5second default; sourceowner/fullgeneratedclip hardcap10seconds includingcontext/preroll/dilation/tail. Shot6seconds stays whole,11seconds rejected before generation; policy copied to every new standalone skill entry/runtime.",
-    "Account-wide target3 as well as cap3; normal three-window batches and tail1-2scope three-hypothesis repairs, independent pilot branches, no repeat paid filler, approvals and actual owner/seam QA retained; new standalone skills inherit entry policy."
+    "Account-wide target3 as well as cap3; normal three-window batches and tail1-2scope three-hypothesis repairs, independent pilot branches, no repeat paid filler, approvals and actual owner/seam QA retained; new standalone skills inherit entry policy.",
+    "User-requested background-only media review avoids desktop player and input injection. Actual contiguous native source/PTS review can approve production inputs; original-speed playback evidence is recorded separately and final dynamic-ready requirements retained.",
+    "Actual cloud headguide rectangle borders traced to assumed globally scaled contact-sheet panel coordinates; use actual photo extents and personally review every native edge/headbody connection before production.",
+    "Observed localFFmpeg7.1 native crashes in audio mux with empty stderr; explicit scalar option now also sets subprocess-cpuflags0, detached stdin and numeric error exit.16current scalar mux reproductions and68full Windows media/template checks passed; no global CPU or system change."
   ],
   "publishing": {
     "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",
