@@ -7,7 +7,15 @@
 
 先按完整原SHA查已安装模板和本次run状态。相同原bytes的已核源分析、角色/镜头/相邻动作阶段从模板复用，不重做首次工厂研究；新剪辑才建立新源分析。重启先恢复已知taskId和已完成文件，不重新POST。每次实看通过立即保存当前输入、输出、owner及覆盖绑定；它们未变时继续剩余步骤，输入或文件变化才撤销相关审核。新身份、新候选和新组装成片仍分别验收。
 
-单窗不合格先核图像顺序/身份范围、导引整幅构图、源相邻动作阶段、context/prefix/scale/owner和接口权限，再选择有针对性的修复；重复失败升级策略，不循环相同提示。其余已过窗口冻结，只修当前窗与必要接点。首次试窗覆盖最容易漏换的角色正脸和关键动作，过关再扩批；多个方案共享同一个恢复调度器与账户并发上限。保存本源特有的失败条件、已实测修复及适用范围到template-constraints，下一次先读取，不把旧人物/旧任务当成源事实。
+单窗不合格先核图像顺序/身份范围、导引整幅构图、源相邻动作阶段、context/prefix/scale/owner和接口权限，再选择有针对性的修复；重复失败升级策略，不循环相同提示。其余已过窗口冻结，只修当前窗与必要接点。首次试窗覆盖最容易漏换的角色正脸和关键动作；为该窗准备3个有实质差异且各自已审批的候选并行比较，选中实际过关的版本后再扩批。保存本源特有的失败条件、已实测修复及适用范围到template-constraints，下一次先读取，不把旧人物/旧任务当成源事实。
+
+## 固定3并发与收尾修复
+
+有已授权、已审批的待生成工作时，同账户在途目标为3，上限为3。普通批次优先3个待做窗口；只剩1～2个不合格范围时，组成3个候选的修复批次。一个问题窗可用3个不同方案；两个问题窗可先分配2+1，并在槽位释放后补充另一窗的不同方案。根据坏帧选择实际不同的身份/表情资料、已审源构图导引、运动阶段描述、合法时钟或接口策略；每个方案保存具体假设、预期改进和独立input digest。同一输入重复抽取不作为3个不同方法。
+
+每个修复候选建独立run，保留完整源分析、owner计划及同一私有账户账本，queue只列本次已批准的修复窗。新路由的各run只开放自己的代表性pilot；选中候选通过实际画幅、身份、动作和完整保留区间审核后，主run才提升该路由质量证据。已有/未知任务占用全账户槽位，先恢复原ID再补新任务。用一个恢复调度器维护这些run，空槽出现便调度下一项已审批工作；队列忙按冷却等待，不为保持数字而重复POST。
+
+Codex负责准备方案、完成语义/投影审批并维护3个工作槽，runner提供共享账本、原子上限和恢复保护，不会自动发明修复方法或批准输入。输入尚待审批、权限失败、未知提交或服务端资源忙时记录实际原因和恢复步骤。全部范围通过后停止新增，已受理任务保留原ID恢复至终态。候选的native风险帧、原速完整owner区间与接点仍分别验收；速度目标不降低质量门槛。
 
 ## 中文名称
 
@@ -36,9 +44,9 @@ python scripts/factory.py prepare --project <run> --deps <deps>
 
 显式VFR/旋转派生记录source_projection采样表、丢失/重复及时间量化。`--approve-projection`只在Codex查看派生参考并对源动作确认可接受后使用，独立于语义审核；不把恢复原PTS说成丢失信息可逆。手改长镜plan后用 `refresh-plan` 重建表再prepare。没有目标角色的空镜passthrough原片owner，不付费生成，成片仍全片QA。单/双人legacy按每窗实际身份数选择对应已证应用或明确profile_override。
 
-新case首窗queue pilot=true，先完成一份实际生产候选；生成文档参数不证明换角视觉。首窗技术+视觉过关后，job.profile.quality_evidence设case-verified并记具体证据，同时更新queue对应profile的QA字段。纯QA推进排除在生成digest之外，重算确认已有输入未变，再扩批。手修提示词或编译器升级后不要盲目prepare覆盖已通过的输入；未修改编译合同的正常run仍可prepare刷新。实质输入/参数变动失效旧task/review，正确归档对应revision。
+新case代表窗queue pilot=true，按上面的独立比较run规则并行完成3个不同实际生产候选；生成文档参数不证明换角视觉。选中首窗技术+视觉过关后，主run的job.profile.quality_evidence设case-verified并记具体证据，同时更新queue对应profile的QA字段。纯QA推进排除在生成digest之外，重算确认已有输入未变，再扩批。手修提示词或编译器升级后不要盲目prepare覆盖已通过的输入；未修改编译合同的正常run仍可prepare刷新。实质输入/参数变动失效旧task/review，正确归档对应revision。
 
-混合single/dual或其他profile route各自先一个pilot，总并发仍3；使用window.profile_override的路由，在该override更新质量证据，不能只更新全局job.profile。再次prepare相同prompt字节保留mtime，不因QA进度失效已审核版本。
+混合single/dual或其他profile route各自保留代表窗pilot门槛，独立比较候选共享总并发3；使用window.profile_override的路由，在该override更新质量证据，不能只更新全局job.profile。再次prepare相同prompt字节保留mtime，不因QA进度失效已审核版本。
 
 ```text
 python scripts/rh_runner.py tick --project <run>

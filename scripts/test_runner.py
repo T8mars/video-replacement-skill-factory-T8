@@ -275,6 +275,42 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(fake.submits,2)
         windows={r['window'] for r in self.ledger.summary('default')['attempts']}
         self.assertEqual(windows,{'w001','w003'})
+    def test_three_isolated_repair_pilots_fill_one_shared_account_and_resume_ids(self):
+        class UniqueTasks(Fake):
+            def submit(self,path,body):
+                self.submits+=1
+                return {'taskId':'repair-'+str(self.submits),'status':'RUNNING'}
+        fake=UniqueTasks()
+        runner=Runner(self.ledger,fake)
+        repairs=[]
+        for i in range(4):
+            project=self.root/('repair-hypothesis-'+str(i))
+            project.mkdir()
+            for name in ('video.mp4','person.png','prompt.txt'):
+                (project/name).write_text(name+' hypothesis '+str(i))
+            (project/'job.json').write_text(json.dumps({'production_authorized':True}))
+            entry=dict(self.entry,input_digest='hypothesis-'+str(i),pilot=True,production_authorized=True)
+            entry['profile']=dict(entry['profile'],quality_evidence='documented-only')
+            repairs.append((project,{'jobs':[entry]}))
+        with patch('rh_runner.preflight',side_effect=lambda p,e:e['input_digest']):
+            for project,queue in repairs:runner.tick(project,queue)
+            self.assertEqual(fake.submits,3)
+            first=self.ledger.summary('default')
+            self.assertEqual(first['active'],3)
+            self.assertEqual({r['task_id'] for r in first['attempts']},{'repair-1','repair-2','repair-3'})
+            self.clock.now+=60
+            for project,queue in repairs:runner.tick(project,queue)
+            self.assertEqual(fake.submits,3)
+            self.assertGreaterEqual(fake.queries,3)
+            self.assertEqual({r['task_id'] for r in self.ledger.summary('default')['attempts']},
+                             {'repair-1','repair-2','repair-3'})
+            self.ledger.update(first['attempts'][0]['id'],state='EXECUTION_FAILED')
+            runner.tick(*repairs[3])
+        self.assertEqual(fake.submits,4)
+        current=self.ledger.summary('default')
+        self.assertEqual(current['active'],3)
+        self.assertEqual({r['task_id'] for r in current['attempts']},
+                         {'repair-1','repair-2','repair-3','repair-4'})
     def test_401_stops_account_immediately(self):
         fake = Fake(ApiFailure(401))
         aid = self.submit(fake)

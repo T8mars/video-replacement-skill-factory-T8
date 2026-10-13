@@ -150,6 +150,11 @@
       "id": "shot-driven-ten-second-production-cap",
       "status": "implemented-offline-verified",
       "scope": "Measuredshot/actionboundaries, no fixed5seconddefault. Sourceowner and fullgeneratedclip hardcap10seconds includingcontext/preroll/dilation/tail; no truncatedowners. Standard6secondshotretained,11secondshotneeds reviewedsubwindows; explicitframeclockpreflight; newstandaloneentry/runtimeinherit."
+    },
+    {
+      "id": "three-active-tail-repair-policy",
+      "status": "codex-orchestrated-offline-runner-verified",
+      "scope": "Codex maintains three approved active generation jobs; normal3windows or final1-2failedscope three distinct isolated hypotheses sharing one ledger/dispatcher. Runtime cap/pilot/recovery guards unchanged; actual cloud and visual approvals remain separate."
     }
   ]
 }
