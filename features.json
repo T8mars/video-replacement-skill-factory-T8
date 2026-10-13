@@ -135,6 +135,11 @@
       "id": "standing-crop-timing-and-text-repair",
       "status": "codex-orchestrated",
       "scope": "Observed standing-close-crop repair and separate phase timing review; facial reappearance guide and clean-caption hypotheses require actual full review. Serialized current input/queue maintenance and corrected neutral source-template events. No automatic quality guarantee."
+    },
+    {
+      "id": "visible-extreme-crop-and-scoped-comparison",
+      "status": "codex-orchestrated",
+      "scope": "Observed portrait insertion/actor reappearance/delayed short-phase outputs trigger source-visible facial crop and source-matched guide review; excluded tail is not a quality guarantee. Scoped authorized repair queue with final complete-run ownership/parent/seam checks; actual new candidate review remains required."
     }
   ]
 }
