@@ -86,8 +86,8 @@ def legacy_resolution_nodes(profile):
     if (not isinstance(ids,list) or not ids or any(type(n) is not str or n not in ('115','214') for n in ids)
         or len(set(ids))!=len(ids) or '115' not in ids):
         raise ValueError('Aspect node IDs must be unique documented selectors including115')
-    if '214' in ids and profile.get('app_id')!='2107844752011010050':
-        raise ValueError('Selector214 is only documented for the single-image application')
+    if '214' in ids and profile.get('app_id') not in ('2107844752011010050','2107845954833907713'):
+        raise ValueError('Selector214 is only documented for the verified single/two-image applications')
     return ([{'nodeId':n,'fieldName':'aspect_ratio','fieldValue':ratio} for n in sorted(ids)] +
             [{'nodeId':'115','fieldName':'megapixels','fieldValue':format(mp,'g')}])
 

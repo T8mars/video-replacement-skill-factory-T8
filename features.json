@@ -140,6 +140,11 @@
       "id": "visible-extreme-crop-and-scoped-comparison",
       "status": "codex-orchestrated",
       "scope": "Observed portrait insertion/actor reappearance/delayed short-phase outputs trigger source-visible facial crop and source-matched guide review; excluded tail is not a quality guarantee. Scoped authorized repair queue with final complete-run ownership/parent/seam checks; actual new candidate review remains required."
+    },
+    {
+      "id": "two-image-published-ratio-and-reference-order",
+      "status": "implemented-offline-verified-cloud-pilot-pending",
+      "scope": "Currenttwoimageapp publishes115/214 aspectnodes plus139image. BothknownappIDs allowed, unrecognizedapp214stillrejected; immutable137139referenceorder and pilotrouteisolation verified. Two pictures maydescribe sameoneidentity; actualoutputidentity/framing/timing require freshpilot."
     }
   ]
 }

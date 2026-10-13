@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.2.16",
+  "version": "1.2.17",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -36,14 +36,14 @@
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
     "offline_tests": "scripts/test_factory.py and scripts/test_runner.py",
-    "offline_test_count": 112,
+    "offline_test_count": 113,
     "media_and_template_tests": 65,
-    "runner_tests": 47,
+    "runner_tests": 48,
     "independent_forward_test_completed": true,
     "independent_defect_rechecks_passed": 2,
     "post_update_template_checks": 3,
     "preroll_preserves_source_owners": true,
-    "production_trial_status": "Historical12.25second photographic fullfilm/portable ready skill verified separately. Current portrait source first104owned frames passed actual native/action/prop/subtitle review and minimal9:16 envelope verified by complete107contentRGB/PTS equality; whole new film remains in production. Current compiler reference-provenance tests65pass; runner47previouslypassed and unchanged.",
+    "production_trial_status": "Historical12.25second photographic fullfilm/portable ready skill verified separately. Current portrait source first104owned frames passed actual native/action/prop/subtitle review and minimal9:16 envelope verified by complete107contentRGB/PTS equality; whole new film remains in production. Current compiler reference-provenance tests65pass; current runner48checks passed; dual-picture cloud pilot still pending.",
     "source_time_scale_verified_offline": true,
     "cloud_pilot_visual_verified": true,
     "automatic_download_recovery_tests": 8,
@@ -63,7 +63,7 @@
       "rendered_with": "1.2.10",
       "scope": "One actually reviewed photographic two-person film; future cases and new identities still require actual review."
     },
-    "current_release_runner_tests": 47,
+    "current_release_runner_tests": 48,
     "legacy_portrait_canvas_controls": {
       "offline_tests": 11,
       "production_pilot_status": "actual-1088x1920-portrait-confirmed-identity-and-extra-prop-rejected",
@@ -74,7 +74,9 @@
         "height": 1920,
         "fps": "24",
         "frames": 107
-      }
+      },
+      "two_image_published_controls_verified": true,
+      "two_image_actual_cloud_visual_verified": false
     },
     "explicit_source_and_identity_reference_binding_verified_offline": true,
     "current_portrait_pilot_review": {
@@ -94,7 +96,7 @@
       "whole_new_film": "pending",
       "scope": "Current production pilot with explicit source reference, user-scoped target identity dossier and positive current empty-surface prose. No universal model quality claim."
     },
-    "current_release_note": "Instruction-only maintenance: observed extreme-crop portrait insertion and delayed/original-identity short-phase outputs remain rejected. Source-visible crop prompts, actual source-pose face guide review, excluded-tail limitations and approved scoped repair queues are documented. Current new fullfilm remains in production; no universal length threshold or cloud-quality pass inferred from guide images. Runtime and regression scripts unchanged."
+    "current_release_note": "Current authenticated read-only two-image legacy app schema publishes both ResolutionSelector115/214 and secondreference139. Allow214 only for the two known app IDs, retain unknown-app and canvas guards;48runner checks pass, including referenceorder and pilot-route isolation. Source/media compiler unchanged;65media/template tests run for current snapshot. Dual-picture sameidentity cloud fidelity and new fullfilm remain pending."
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -130,7 +132,8 @@
     "Dedicated GitHub repository and continuing factory-only publication route; README registration/social links, forbidden ROADMAP/credentials, manifest whitelist and outgoing-commit guard recorded.",
     "Explicit documented legacy ResolutionSelector aspect/MP, request and route binding, portrait/mismatch guard before paid submission; actual landscape failures retained; new published115+214 portrait direction confirmed while identity/prop QA failed.",
     "Current live single-image app publishes ResolutionSelector115 and214; explicitly set both aspects, bind node IDs to pilot route, reject unsupported/duplicate nodes. Previous unpublished115 aspect was ignored in actual output; actual portrait direction confirmed; identity/prop QA still failed.",
-    "Explicit standalone Video1 source performance/camera/time/scene definition and Subject/Picture provenance; replacement summary keeps source roles/positions and obeys face-only scope. Two meaningful local-order/scope regressions. Positive current empty-prop state plus effective identity clauses passed one portrait window; frozen custom prompts are not blindly overwritten on QA promotion."
+    "Explicit standalone Video1 source performance/camera/time/scene definition and Subject/Picture provenance; replacement summary keeps source roles/positions and obeys face-only scope. Two meaningful local-order/scope regressions. Positive current empty-prop state plus effective identity clauses passed one portrait window; frozen custom prompts are not blindly overwritten on QA promotion.",
+    "Authenticated read-only two-image app schema publishes115+214 aspects and139reference; whitelist both known apps for214, preserve unknown-app rejection and app-specific pilot isolation; sameidentity twoexpression reference does not add sourceactor."
   ],
   "publishing": {
     "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",

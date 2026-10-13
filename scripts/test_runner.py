@@ -101,8 +101,21 @@ class RunnerTests(unittest.TestCase):
                 fake=Fake()
                 with self.assertRaises(ValueError):self.submit(fake)
                 self.assertEqual(fake.submits,0)
-    def test_second_selector_cannot_be_sent_to_unverified_dual_app(self):
+    def test_two_image_app_published_selectors_and_reference_order(self):
         self.entry['profile'].update({'app_id':'2107845954833907713','resolution_selector':{'aspect_ratio':'9:16 (Portrait Widescreen)','megapixels':2,'aspect_node_ids':['115','214']}})
+        (self.project/'second.png').write_text('distinct second expression of the same person')
+        self.entry['reference_paths']=['person.png','second.png']
+        aid=self.submit(Fake());raw=self.ledger.row(aid)['request'];request=json.loads(raw)
+        self.assertEqual(request['path'],'/openapi/v2/run/ai-app/2107845954833907713')
+        nodes=request['body']['nodeInfoList']
+        self.assertEqual({n['nodeId'] for n in nodes if n['fieldName']=='aspect_ratio'},{'115','214'})
+        self.assertEqual(next(n['fieldValue'] for n in nodes if n['nodeId']=='137'),sha(self.project/'person.png'))
+        self.assertEqual(next(n['fieldValue'] for n in nodes if n['nodeId']=='139'),sha(self.project/'second.png'))
+        self.assertTrue(same_profile_route(self.entry['profile'],raw))
+        old_route={**self.entry['profile'],'app_id':'2107844752011010050'}
+        self.assertFalse(same_profile_route(old_route,raw))
+    def test_second_selector_still_rejects_unrecognized_application(self):
+        self.entry['profile'].update({'app_id':'unreviewed-app','resolution_selector':{'aspect_ratio':'9:16 (Portrait Widescreen)','megapixels':2,'aspect_node_ids':['115','214']}})
         fake=Fake()
         with self.assertRaisesRegex(ValueError,'only documented'):self.submit(fake)
         self.assertEqual(fake.submits,0)
