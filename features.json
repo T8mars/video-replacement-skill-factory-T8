@@ -175,6 +175,31 @@
       "id": "original-identity-authority-and-feedback-revocation",
       "status": "codex-orchestrated",
       "scope": "Actual original-photo/source/output side-by-side identity judgment; derived/generated references cannot become sole identity authority based on prior passes. Whole-film user identity rejection revokes corresponding verdicts and triggers literal-reference pilots. No automatic face score or claim current portrait film passed."
+    },
+    {
+      "id": "original-photo-identity-correction",
+      "status": "implemented-case-scoped",
+      "scope": "Self-contained face_swap.py uses current schema, original photograph, explicit input approvals and shared account ledger. Current193 single-person case actually accepted; every new route/identity remains a pilot."
+    },
+    {
+      "id": "measured-correction-output-clock",
+      "status": "implemented-case-scoped",
+      "scope": "identity_clock.py supports the measured24fps720portrait ->1280square8fps route; complete input<=10s, all unique poses counted, precise inverse crop/raw RGB/PTS. No guessed rate/resampling."
+    },
+    {
+      "id": "configured-face-detail",
+      "status": "implemented-case-scoped",
+      "scope": "Optional local CodeFormer1.0 fidelity with configured models, bounded CUDA or explicitCPU, all ownerRGB/PTS and outside-alpha body proof. Missing detections and native identity/occlusion remain pending."
+    },
+    {
+      "id": "postprocessed-delivery-review",
+      "status": "implemented-case-scoped",
+      "scope": "Build-only separate finalfilm contract keeps rejected candidates failed, verifies actual complete rawRGB/PTS, source timeline/audio, bound original-photo likeness, actual1x evidence, owner parents and all declared native risks/seams."
+    },
+    {
+      "id": "chinese-template-context",
+      "status": "implemented-case-scoped",
+      "scope": "Every new standalone skill carries Chinese entry/UI/manifest plus meta.json and features.json; fresh instantiate still clears references, profile and authorization."
     }
   ]
 }

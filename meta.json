@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.2.22",
+  "version": "1.2.23",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -69,14 +69,14 @@
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
     "offline_tests": "scripts/test_factory.py and scripts/test_runner.py",
-    "offline_test_count": 119,
+    "offline_test_count": 134,
     "media_and_template_tests": 68,
     "runner_tests": 51,
     "independent_forward_test_completed": true,
     "independent_defect_rechecks_passed": 2,
     "post_update_template_checks": 3,
     "preroll_preserves_source_owners": true,
-    "production_trial_status": "Historical12.25second photographic fullfilm/portable ready skill verified separately. Current portrait30.041667second review copy technically verified721frames and1297original AAC packets, but human rejected original-reference identity likeness; prior first-window identity verdict revoked. New original-only identity pilots required before corrected-film qualification.",
+    "production_trial_status": "Corrected photographic portrait30.041667second whole721frame film accepted by actual human1x original-reference likeness/no-obvious-issues review.1297originalAACpackets preserved. Rejected old identity version stays failed; new identities/routes still require independent pilots and current QA.",
     "source_time_scale_verified_offline": true,
     "cloud_pilot_visual_verified": true,
     "automatic_download_recovery_tests": 8,
@@ -114,23 +114,31 @@
     },
     "explicit_source_and_identity_reference_binding_verified_offline": true,
     "current_portrait_pilot_review": {
-      "owned_frames": 104,
-      "fps": "24",
-      "seconds": "104/24",
-      "actual_cloud_canvas": [
-        1088,
-        1920
-      ],
-      "normalized_canvas": [
-        1089,
-        1936
-      ],
-      "native_and_actual_playback_review": "historical-first-window-observation; identity-verdict-revoked-by-user",
-      "complete_content_rgb_and_pts_proof_frames": 107,
-      "whole_new_film": "failed-original-reference-identity; newidentitypilots-pending",
-      "scope": "Canvas/frame evidence remains valid. Previous visual identity approval did not sufficiently establish likeness to original human-supplied portrait and was revoked after user feedback; no current film quality claim."
+      "scope": "Historical initial pilot identity verdict remains revoked; corrected complete film recorded separately below"
     },
-    "current_release_note": "Documentation-only original-identity authority and whole-film feedback correction. Current portrait review copy retains actual721frame/1297AAC technical evidence, but human rejected identity likeness; prior current-source visual identity verdicts revoked. Three new literal-original identity pilots running. Runtime unchanged; historical12.25second scope remains separate."
+    "current_release_note": "Portable original-photo RH adapter, measured24fpsportrait->1280square8fps inverse-clock recovery, optional configured detail runtime; independent postprocessed fullfilm build contract validates complete raw RGB/PTS, original source/audio, current identity, real1x evidence and native seams. Newly installed templates carry Chinese meta/features.",
+    "identity_pipeline_tests": 15,
+    "corrected_portrait_quality_scope": {
+      "frames": 721,
+      "seconds": "721/24",
+      "canvas": [
+        720,
+        1280
+      ],
+      "source_fps": "24",
+      "face_swap_app_id": "1931791712199618561",
+      "measured_app_output_fps": "8",
+      "original_audio_packets": 1297,
+      "complete_technical": "passed",
+      "actual_original_speed_reviewer": "human-user",
+      "original_reference_likeness": "accepted",
+      "scope": "One specific complete photographic single-person case. No automatic future quality or multiple-face assignment claim."
+    },
+    "portable_local_detail_smoke": {
+      "actual_frames": 2,
+      "RGB_PTS_and_unchanged_body": "passed",
+      "visual": "pending; smoke is not film approval"
+    }
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -176,7 +184,8 @@
     "Actual photo bounds alone do not prove head/body integration. Current soft outer blend with fully covered head core removed observed rectangle in a50frame native review; full original-speed still pending. No fixed blend width.",
     "Actual image-edited clean cloth/background can remove an opaque blank caption plate before original glyph/time restoration. Declared frame-local box/halo and outside RGB equality, actual panel bounds and cross-window caption material review retained.",
     "Actual source color enums include unspecified values. Full independent final decode, numeric native exit diagnosis and reuse of verified raw owners prevent unnecessary cloud reruns; short successful probes and process exit alone do not prove fullfilm.",
-    "Original identity is an independent quality gate: compare literal user photo, source actor and current output; changed hairstyle/costume/action does not prove identity. Derived and previously approved generated references are rechecked against original authority; broad human identity rejection revokes corresponding identity conclusions, preserving source technical facts."
+    "Original identity is an independent quality gate: compare literal user photo, source actor and current output; changed hairstyle/costume/action does not prove identity. Derived and previously approved generated references are rechecked against original authority; broad human identity rejection revokes corresponding identity conclusions, preserving source technical facts.",
+    "Original-photo identity correction with measured output clock/canvas, optional bounded detail, missing detector and foreground-mask risks; actual fullfilm acceptance is bound to the current file and does not alter rejected intermediate reviews."
   ],
   "publishing": {
     "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",

@@ -1,26 +1,32 @@
 {
   "schema_version": 1,
   "name": "video-replacement-skill-factory",
-  "version": "1.2.22",
-  "offline_tests_passed": 119,
+  "version": "1.2.23",
+  "offline_tests_passed": 134,
   "cloud_generation_performed": true,
   "files": {
     "agents/openai.yaml": "905c39937ed2b1592e6baa8d1783967954e147eda45c0cfee6c8d5101c084f00",
     "assets/backend-profiles.json": "920c7d9b70fbc5625fc9aa0ee82187d8ce7c1b6129c5e30d0ac7f2861135a519",
-    "features.json": "33174c174207a875e0b8af6f227a9b2d30391aa0e369d52c4480aa2b3a6ca743",
-    "meta.json": "44633c2417a33e2e06bf3cf433cfe750cb11a91c6d57e018b736743afb179dc7",
+    "features.json": "07d51c8b1fa55fe613389ac8fb93b816a9d5856dcc1e7b216e1f93addd3a973c",
+    "meta.json": "0af21b7721ffa9d88bd55f42833c637291bed6f33dac61a861c77634f4e1d41c",
     "references/backends.md": "c22ed88b13bc8482879ace1d3f3aabd7ea213da6b4e4fa92856c2461029d926d",
     "references/quality-and-repair.md": "9f95cac7d3f5d55a479f2257334ac8787c04804ac2844b513e72ed94aa470b66",
     "references/schemas.md": "a21ef4b213e22bac1cb24d82071b5ec48890793a1963dc70fe2aa3001abc0538",
     "references/workflow.md": "755dbd0e95319f893a17088654c2ca624998b12f139f6d4e4eabaddd1df88451",
-    "scripts/factory.py": "eb77b6c84fbc060f57d9ec9a2e39e391f26eebeb879a2de3fb38c05ebee3b1dc",
+    "scripts/factory.py": "b993f097e463f06dc2fdc2e33941e9783ba06a454e692c7b27df7edabe3850a2",
     "scripts/media.py": "295f542a621d54d1eec9cf05648026649e847a14c47182fe5cb944044854ddb3",
     "scripts/rh_runner.py": "f516e66ba53ad3e48b9f4dd04e271868d623ef698f66aea64e92ad3bd77fef27",
     "scripts/test_factory.py": "2564340d81196b8c8073d9bd1042c9e798bb981ffacfbd738635dd7ca2a2a853",
     "scripts/test_runner.py": "5f101c544fdda9c83a606a8d46d3a695100aa44943c150476786470f5beb5bbb",
-    "SKILL.md": "14d4771ec6a681e229611a8bb8fd5706d1661a0dd253b1438bc1077dfecf00d9",
-    "README.md": "f2c74a74259e09f72bcd49d617664b6d01bf17f96ef28d8a65c98fca8d541ade",
-    "AGENTS.md": "0f6c0fd88e9641075a2661f979bc618adf1f42a43442f65d5d09c1b330892905"
+    "SKILL.md": "cf0093c486718ab27fe5001e1aaafbeca091ce2fd258fd0f73e4c6cf892064d7",
+    "README.md": "ee75a7d36ab54beceb72a4c52c250a03a1ce4b16386cfc4aacf2c4955d009734",
+    "AGENTS.md": "0f6c0fd88e9641075a2661f979bc618adf1f42a43442f65d5d09c1b330892905",
+    "scripts/delivery.py": "af23aa7b1ce0fbc7cdbe2d0c75d63ca5018aef366810f6e342823188e7faba8c",
+    "scripts/face_swap.py": "590377e78aa0521d05382dbb175ced673cc46e7a88aad233e1e362823849a6f0",
+    "scripts/identity_clock.py": "15ae9524a96ecdddaae767b9de922fd72a562e93b378d5128dc9b1d918183023",
+    "scripts/face_detail.py": "3af753f6f9f51641d7e5c0e2815c0b24fb468b56e53b310c4ed5513c0d8317d7",
+    "scripts/test_identity.py": "14248d5d37f3fd4ffa09be8108a5f9768b2ea73ecd574d34122572fc42d8ce40",
+    "references/identity-correction.md": "aa590f81a614c5f418cd863938b34933e41729b0b3f08dd0a88f695e964bcb76"
   },
   "post_update_template_checks": 3,
   "cloud_visual_quality_verified": true,
@@ -33,5 +39,6 @@
     "seconds": 12.25,
     "rendered_with": "1.2.10",
     "scope": "One actually reviewed photographic two-person film; future cases and new identities still require actual review."
-  }
+  },
+  "identity_pipeline_tests": 15
 }

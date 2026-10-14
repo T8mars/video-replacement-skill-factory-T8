@@ -2,17 +2,47 @@
   "skill": "video-replacement-skill-factory",
   "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",
   "runtime_files": [
-    "SKILL.md", "README.md", "AGENTS.md", "meta.json", "features.json", "manifest.json",
-    "agents/openai.yaml", "assets/backend-profiles.json",
-    "references/backends.md", "references/quality-and-repair.md", "references/schemas.md", "references/workflow.md",
-    "scripts/factory.py", "scripts/media.py", "scripts/rh_runner.py", "scripts/test_factory.py", "scripts/test_runner.py"
+    "SKILL.md",
+    "README.md",
+    "AGENTS.md",
+    "meta.json",
+    "features.json",
+    "manifest.json",
+    "agents/openai.yaml",
+    "assets/backend-profiles.json",
+    "references/backends.md",
+    "references/quality-and-repair.md",
+    "references/schemas.md",
+    "references/workflow.md",
+    "scripts/factory.py",
+    "scripts/media.py",
+    "scripts/rh_runner.py",
+    "scripts/test_factory.py",
+    "scripts/test_runner.py",
+    "scripts/delivery.py",
+    "scripts/face_swap.py",
+    "scripts/identity_clock.py",
+    "scripts/face_detail.py",
+    "scripts/test_identity.py",
+    "references/identity-correction.md"
   ],
   "repository_files": [
-    ".gitignore", ".gitattributes", "publish-policy.json", "requirements.txt",
-    ".githooks/pre-push", ".github/workflows/verify.yml",
-    "tools/verify_publish.py", "tools/sync_skill.py", "tools/test_publish.py"
+    ".gitignore",
+    ".gitattributes",
+    "publish-policy.json",
+    "requirements.txt",
+    ".githooks/pre-push",
+    ".github/workflows/verify.yml",
+    "tools/verify_publish.py",
+    "tools/sync_skill.py",
+    "tools/test_publish.py"
   ],
-  "forbidden_case_insensitive": ["roadmap.md", "api_key.txt", "apikey.txt", ".env"],
+  "forbidden_case_insensitive": [
+    "roadmap.md",
+    "api_key.txt",
+    "apikey.txt",
+    ".env"
+  ],
   "include_generated_video_skills": false,
   "include_runtime_or_media": false
 }

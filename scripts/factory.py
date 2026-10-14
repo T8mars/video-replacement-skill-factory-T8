@@ -937,12 +937,16 @@ def chinese_skill_title(original_name, source_sha, display_name=None):
     return display_name
 
 
-def build_skill(project, skills_root, status='draft', display_name=None):
+def build_skill(project, skills_root, status='draft', display_name=None, delivery_review=None):
     project, root = Path(project), Path(skills_root)
     source, analysis = validate_analysis(project)
     if status == 'ready':
-        review_guard(project)
-        review_guard(project, final=True)
+        if delivery_review:
+            import delivery
+            delivery.guard(project, delivery_review)
+        else:
+            review_guard(project)
+            review_guard(project, final=True)
     elif status != 'draft':
         raise ValueError('Template status must be draft or ready')
     # Free-form review notes can mix source observations with this run's task/hypothesis
@@ -1043,6 +1047,9 @@ def build_skill(project, skills_root, status='draft', display_name=None):
             'run prepare, personally approve prompt semantics, use the included rh_runner.py for the authorized production run, '
             'inspect candidates at natural speed and risk frames at native resolution, write version-bound reviews, assemble, '
             'and inspect the final before delivery. Read references/workflow.md and references/quality-and-repair.md when present.\n\n'
+            +('Read [original-photo identity correction](references/identity-correction.md) if likeness fails. '
+              'The bundled face_swap.py prepares the measured input projection and restores its output clock; '
+              'current schema, pilot and actual identity/occlusion review remain required.\n\n' if (stage/'references'/'identity-correction.md').exists() else '')
             +('Read [source-specific production constraints](assets/evidence/template-constraints.md) before planning or repairing this source.\n\n' if (stage/'assets'/'evidence'/'template-constraints.md').exists() else '')+
             'Installation and offline validation do not submit paid tasks. An initial passed film does not approve future identities.\n',
             encoding='utf-8')
@@ -1051,6 +1058,19 @@ def build_skill(project, skills_root, status='draft', display_name=None):
         (agents/'openai.yaml').write_text('interface:\n  display_name: '+json.dumps(title,ensure_ascii=False)+
             '\n  short_description: '+json.dumps('使用新人物参考图复刻原片，保留动作、镜头、时长、场景和原音轨',ensure_ascii=False)+
             '\n  default_prompt: '+json.dumps('使用 $'+name+'，根据新人物参考图制作'+title+'。',ensure_ascii=False)+'\n', encoding='utf-8')
+        factory_meta_path=Path(__file__).parent.parent/'meta.json'
+        factory_version=read(factory_meta_path).get('version') if factory_meta_path.exists() else None
+        write(stage/'meta.json',{'name':name,'display_name':title,'status':status,
+            'source_sha256':full_sha,'factory_version':factory_version,
+            'source_frame_count':source['video']['frame_count'],
+            'source_roles':len(analysis['roles']),'first_film':'passed-current-bound-review' if status=='ready' else 'pending',
+            'production_references':'Not included; each new run receives its own identity references',
+            'publication':'Local dedicated skill; excluded from factory repository'})
+        write(stage/'features.json',{'source_facts_reviewed':True,'source_assets_included':True,
+            'dedicated_skill_ready':status=='ready','future_identity_review_required':True,
+            'original_photo_correction_runtime':(scripts/'face_swap.py').exists(),
+            'hard_max_complete_generation_seconds':10,'default_fixed_segment_seconds':None,
+            'account_concurrency_target':3,'account_concurrency_cap':3})
         manifest = {'schema_version': 1, 'name': name, 'status': status, 'source_sha256': full_sha,
                     'display_name':title,'analysis_digest': neutral_analysis_digest, 'files': {}}
         for path in stage.rglob('*'):
@@ -1123,6 +1143,7 @@ def main():
     parser.add_argument('--skills-root', default=os.environ.get('CODEX_HOME',str(Path.home()/'.codex'))+'/skills')
     parser.add_argument('--status', choices=['draft','ready'], default='draft')
     parser.add_argument('--display-name',help='Chinese source-specific display/search title for build-skill')
+    parser.add_argument('--delivery-review',help='Build-only explicit current-file review of an externally postprocessed full film; never approves intermediate candidates')
     args = parser.parse_args()
     if args.command not in ('recover-install',) and not args.project:
         parser.error('--project is required')
@@ -1138,7 +1159,7 @@ def main():
     elif args.command == 'assemble':
         result = assemble(args.project,args.output,args.deps,args.scalar_cpu)
     elif args.command == 'build-skill':
-        result = build_skill(args.project,args.skills_root,args.status,args.display_name)
+        result = build_skill(args.project,args.skills_root,args.status,args.display_name,args.delivery_review)
     elif args.command == 'recover-install':
         result = recover_install(args.skills_root)
     elif args.command == 'inspect-candidate':

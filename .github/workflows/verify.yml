@@ -16,3 +16,4 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python scripts/test_factory.py --work /tmp/factory-regressions
       - run: python scripts/test_runner.py
+      - run: python scripts/test_identity.py
