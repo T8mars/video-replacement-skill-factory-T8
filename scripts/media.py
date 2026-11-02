@@ -128,6 +128,12 @@ def project_frames(video,context,generation_fps,generation_frames=None,preroll_f
     return result
 
 
+def side_data_values(container):
+    """Normalize old enum-key iteration and newer SideData-object iteration."""
+    for item in container:
+        yield item if hasattr(item,'type') else container[item]
+
+
 def inspect(path, deps=None, scalar_cpu=False, evidence_dir=None):
     """Decode video/audio completely; source cuts are suggestions, never verdicts."""
     av = runtime(deps, scalar_cpu)
@@ -163,9 +169,9 @@ def inspect(path, deps=None, scalar_cpu=False, evidence_dir=None):
                 if getattr(frame,'rotation',0):
                     video['rotation']=str(frame.rotation)
                     video['display_transform_status']='requires_verified_normalization'
-                # PyAV's container iterates SideData objects, not Mapping keys.
-                # Mapping.values() raises KeyError on PyAV18 with ordinary H264 SEI.
-                for side in frame.side_data:
+                # PyAV18 iterates objects; older wheels iterate enum keys.
+                # Mapping.values() cannot normalize both interfaces.
+                for side in side_data_values(frame.side_data):
                     if getattr(side.type, 'name', '') == 'DISPLAYMATRIX':
                         import struct
                         raw = bytes(side)

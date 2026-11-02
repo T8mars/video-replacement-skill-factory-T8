@@ -110,6 +110,23 @@ class FactoryIntegration(unittest.TestCase):
         self.assertTrue((self.project/'evidence/frame_000000.png').exists())
         self.assertEqual(self.source['source']['sha256'],media.signature(self.video)['sha256'])
 
+    def test_real_h264_side_data_objects_and_legacy_enum_keys_preserve_metadata(self):
+        av=media.runtime(DEPS,SCALAR)
+        rotated=video_fixture(self.temp/'side-data-rotated.mp4',rotation=90)
+        kinds=set()
+        for path in [self.video,rotated]:
+            with av.open(str(path)) as container:
+                actual=list(media.side_data_values(next(container.decode(video=0)).side_data))
+                kinds.update(side.type.name for side in actual)
+                old_api={side.type:side for side in actual}
+                expected=[(side.type,bytes(side)) for side in actual]
+                self.assertEqual([(side.type,bytes(side)) for side in media.side_data_values(old_api)],expected)
+                self.assertEqual([(side.type,bytes(side)) for side in media.side_data_values(actual)],expected)
+        self.assertIn('SEI_UNREGISTERED',kinds)
+        self.assertIn('DISPLAYMATRIX',kinds)
+        report=media.inspect(rotated,DEPS,SCALAR)
+        self.assertIn('display_matrix',report['video'])
+
     def test_default_legacy_excludes_over_ten_seconds_without_a_fixed_five_second_default(self):
         job=copy.deepcopy(self.job)
         job['profile']['limits']['frame_counts']=[121,144]

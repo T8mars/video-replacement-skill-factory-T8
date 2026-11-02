@@ -224,7 +224,7 @@
     {
       "id": "pyav18-side-data-and-standalone-review-runtime",
       "status": "implemented-offline-verified",
-      "scope": "Real H264 SEI/display rotation compatibility, new helper inherited by Chinese dedicated ZIP, independent cwd/deps runtime; old skill versions preserved."
+      "scope": "Real H264 SEI/display-matrix data preserved for both legacy enum-key and modern SideData-object iteration; standalone Chinese ZIP/helper/deps runtime inherited without overwriting old skill versions."
     },
     {
       "id": "source-only-candidate-evidence-boundary",
