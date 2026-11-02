@@ -1,30 +1,110 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-11",
+  "checked_at": "2026-11-02",
   "profiles": {
     "legacy-one": {
       "kind": "legacy-ai-app",
       "app_id": "2107844752011010050",
       "instance_type": "plus",
       "quality_evidence": "observed-other-project",
-      "limits": {"fps": ["24"], "frame_counts": [22, 39, 56, 73, 90, 107], "identity_slots": 1, "required_audio": true},
-      "evidence": {"type": "local-successful-project", "date": "2026-10-11", "scope": "Observed discrete inputs and nodes; new source requires production pilot review."}
+      "limits": {
+        "fps": [
+          "24"
+        ],
+        "frame_counts": [
+          22,
+          35,
+          39,
+          49,
+          56,
+          59,
+          61,
+          73,
+          90,
+          107
+        ],
+        "identity_slots": 1,
+        "required_audio": true
+      },
+      "evidence": {
+        "type": "local-successful-project",
+        "date": "2026-10-11",
+        "scope": "Observed discrete inputs and nodes; new source requires production pilot review.",
+        "additional_receipt_date": "2026-11-02",
+        "additional_receipt_scope": "Application-specific discrete frame counts from successful accepted/downloaded production tasks. Transport capability only; new source/identity still requires actual pilot and full visual review."
+      }
     },
     "legacy-two": {
       "kind": "legacy-ai-app",
       "app_id": "2107845954833907713",
       "instance_type": "plus",
       "quality_evidence": "observed-other-project",
-      "limits": {"fps": ["24"], "frame_counts": [22, 39, 56, 73, 90, 107], "identity_slots": 2, "required_audio": true},
-      "evidence": {"type": "local-successful-project", "date": "2026-10-11", "scope": "Two input images only; not evidence for three simultaneous target identities."}
+      "limits": {
+        "fps": [
+          "24"
+        ],
+        "frame_counts": [
+          22,
+          39,
+          56,
+          58,
+          59,
+          70,
+          71,
+          73,
+          76,
+          82,
+          90,
+          97,
+          100,
+          107,
+          112,
+          141,
+          187,
+          199,
+          211
+        ],
+        "identity_slots": 2,
+        "required_audio": true
+      },
+      "evidence": {
+        "type": "local-successful-project",
+        "date": "2026-10-11",
+        "scope": "Two input images only; not evidence for three simultaneous target identities.",
+        "additional_receipt_date": "2026-11-02",
+        "additional_receipt_scope": "Application-specific discrete frame counts from successful accepted/downloaded production tasks. Transport capability only; new source/identity still requires actual pilot and full visual review."
+      }
     },
     "standard-h3": {
       "kind": "standard-h3",
       "resolution": "2K",
       "ratio": "adaptive",
       "quality_evidence": "documented-only",
-      "limits": {"image_count": 9, "video_count": 3, "audio_count": 3, "duration_seconds": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "prompt_characters": 20480},
-      "evidence": {"type": "official-schema", "checked_at": "2026-10-11", "url": "https://www.runninghub.ai/runninghub-api-doc-en/api-495380675.md", "scope": "API input contract; actual output frame axis and replacement quality require case review."}
+      "limits": {
+        "image_count": 9,
+        "video_count": 3,
+        "audio_count": 3,
+        "duration_seconds": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "prompt_characters": 20480
+      },
+      "evidence": {
+        "type": "official-schema",
+        "checked_at": "2026-10-11",
+        "url": "https://www.runninghub.ai/runninghub-api-doc-en/api-495380675.md",
+        "scope": "API input contract; actual output frame axis and replacement quality require case review."
+      }
     }
   }
 }

@@ -95,8 +95,8 @@ class Runner(rh.Runner):
     def submit_one(self,project,entry,validator=None):
         validator=validator or preflight
         digest=validator(project,entry)
-        account=self.ledger.account(self.account)
-        if account['stopped'] or account['cooldown']>self.ledger.clock():
+        if not self.ledger.can_submit(self.account,project,entry['window_id'],digest,
+                                      entry.get('retry_after'),block_uncertain=True):
             return None
         refs=[self.upload(rh.asset(project,p),'reviewed-framewise-face-swap') for p in entry['reference_paths']]
         video=self.upload(rh.asset(project,entry['video_path']),'reviewed-framewise-face-swap')
@@ -106,7 +106,7 @@ class Runner(rh.Runner):
               'instanceType':profile.get('instance_type','default'),'usePersonalQueue':False}
         if validator(project,entry)!=digest:
             raise ValueError('Face-swap assets changed during upload')
-        aid=self.ledger.reserve(self.account,project,entry['window_id'],digest,entry.get('retry_after'))
+        aid=self.ledger.reserve(self.account,project,entry['window_id'],digest,entry.get('retry_after'),block_uncertain=True)
         if not aid:
             return None
         self.ledger.update(aid,request=json.dumps({'path':path,'body':body},ensure_ascii=False))
@@ -137,15 +137,20 @@ class Runner(rh.Runner):
         rows=self.ledger.db.execute('SELECT id FROM attempts WHERE account=? AND state IN (?,?,?,?,?,?) ORDER BY created',
                                    (self.account,*rh.POLLABLE)).fetchall()
         for row in rows:
-            self.recover(row['id'])
-        preflight(project,entry)
-        if entry.get('pilot') is not True:
-            raise ValueError('Prototype permits only isolated representative pilots')
-        prior=self.ledger.db.execute('SELECT window FROM attempts WHERE account=? AND project=? AND window<>?',
-                                    (self.account,str(Path(project).resolve()),entry['window_id'])).fetchone()
-        if prior:
-            raise ValueError('New app cannot expand before actual pilot qualification')
-        self.submit_one(project,entry)
+            self.recover(row['id'],defer_download=True)
+        try:
+            preflight(project,entry)
+            if entry.get('pilot') is not True:
+                raise ValueError('Prototype permits only isolated representative pilots')
+            prior=self.ledger.db.execute('SELECT window FROM attempts WHERE account=? AND project=? AND window<>?',
+                                        (self.account,str(Path(project).resolve()),entry['window_id'])).fetchone()
+            if prior:
+                raise ValueError('New app cannot expand before actual pilot qualification')
+            self.submit_one(project,entry)
+        finally:
+            ready=self.ledger.db.execute("SELECT id FROM attempts WHERE account=? AND state IN ('RESULTS_READY','DOWNLOAD_FAILED') AND next_poll<=?",
+                                         (self.account,self.ledger.clock())).fetchall()
+            for row in ready:self.recover(row['id'])
         return self.ledger.summary(self.account)
 
 

@@ -14,6 +14,8 @@
 
 `inspect-candidate`实际解码并提出nearest-PTS映射，视觉/时间映射仍pending。只有Codex核源事件时序、动态和原尺寸画面后才填passed。逆序/过界映射拒绝；重复映射与时间量化损失需要明确审看记录，不能称帧完整因此动作无损。final审核也不能套用片段审核。
 
+1.3新增候选有mapping_mode=nominal-pts、output_clock_review（默认pending；完整实际输出观察后为observed/intervals/notes）。旧合法strictPTS记录不强制补字段。新增显式measured-source-poses合同、配对证据/切点、当前visual.measured_mapping_digest及规范RGB/PTS计划见[production-reliability.md](production-reliability.md)；不放宽默认PTS或最终动态门槛。新映射归档旧review、重置visual pending，composition另绑定映射摘要。
+
 `plan.windows[].preroll_frames` 可显式设置0…64个重复开头源帧作为生成缓冲，默认0。只有实际观察到开头生成不稳定且策略经过复核时使用。prepare在导引前加缓冲、延迟派生音轨、偏移提示词时间；source_projection的source_to_generation整体加相同偏移，owner不含缓冲，尾部padding_frames另算。generation_frames必须覆盖缓冲加完整context。final仍按原源PTS和原音轨组装，不以丢掉原片头来修复异常。更改该值失效旧queue/候选和派生缓存，须归档后重建。
 
 ## CLI
@@ -33,6 +35,9 @@ rh_runner.py tick --project <run>
 rh_runner.py status|stop|resume
 rh_runner.py recover-unknown --attempt <UUID> --task-id <identified-ID>
 rh_runner.py visual-failed --attempt <UUID> --failure-record <JSON>
+candidate_review.py evidence --project <run> --window-id <ID> --candidate <relative> --out candidate-evidence/<new> [--rois <relative.json>] [--mapping <relative.json>] [--native-all]
+candidate_review.py map --project <run> --window-id <ID> --mapping <relative-reviewed-map.json>
+candidate_review.py verify-rgb --plan <canonical-plan.json> --video <lossless-video> --out <new-proof.json> [--ffmpeg <path>] [--ffprobe <path>] [--deps <path>]
 ```
 
 assemble的output只接受文件名，结果留run/outputs内，不覆盖已有输出。脚本媒体命令可带deps/scalar参数，实际参数以 `--help` 为准。visual-failed记录output_sha256、bad_frames、hypothesis；输入变更后重prepare/实际审稿，累计attempt不清零。

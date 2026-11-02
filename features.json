@@ -200,6 +200,46 @@
       "id": "chinese-template-context",
       "status": "implemented-case-scoped",
       "scope": "Every new standalone skill carries Chinese entry/UI/manifest plus meta.json and features.json; fresh instantiate still clears references, profile and authorization."
+    },
+    {
+      "id": "fresh-request-assets-and-persistent-paid-recovery",
+      "status": "implemented-offline-verified",
+      "scope": "Per-request fresh handles, admission/atomic unknown barrier, query/refill/download scheduling and bounded retry beyond three network errors; no duplicate paid POST."
+    },
+    {
+      "id": "complete-output-native-pose-evidence",
+      "status": "implemented-offline-verified",
+      "scope": "Actual full decoded clock, last frame, per-role native ROI and every owned source/native output pair. Prepared evidence never approves visual coverage."
+    },
+    {
+      "id": "explicit-measured-source-pose-map",
+      "status": "implemented-offline-verified",
+      "scope": "Default strictPTS unchanged; explicit source/input/output/evidence/mapping bindings, same-shot cuts, start/middle/end observations and visual mapping digest; remap clears old visual."
+    },
+    {
+      "id": "independent-canonical-rgb-pts-proof",
+      "status": "implemented-offline-verified",
+      "scope": "All canonical PNG RGB bytes and frame PTS/duration checked by independent FFmpeg/ffprobe; mutable plan/images/video rejected, visual remains pending."
+    },
+    {
+      "id": "pyav18-side-data-and-standalone-review-runtime",
+      "status": "implemented-offline-verified",
+      "scope": "Real H264 SEI/display rotation compatibility, new helper inherited by Chinese dedicated ZIP, independent cwd/deps runtime; old skill versions preserved."
+    },
+    {
+      "id": "source-only-candidate-evidence-boundary",
+      "status": "implemented-offline-verified",
+      "scope": "Candidate helper rejects reusable source trees; build rejects known current-run evidence kinds; legitimate neutral source constraints retained."
+    },
+    {
+      "id": "app-specific-long-input-receipts",
+      "status": "implemented-transport-observed-offline-verified",
+      "scope": "Exact per-app discrete frames, including dual141/187/199/211, from accepted/downloaded production receipts. Not evidence for new shot visual quality; pilot and complete10second limit remain."
+    },
+    {
+      "id": "complete-runtime-manifest-and-outgoing-history",
+      "status": "implemented-offline-verified",
+      "scope": "Runtime whitelist must be fully hash-covered; temporary Git negative checks reject removed forbidden intermediate commits; no other skill/media/private data publication."
     }
   ]
 }

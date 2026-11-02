@@ -1,5 +1,6 @@
 """Offline behavioral tests. Network access is forbidden in this process."""
 from pathlib import Path
+from fractions import Fraction
 import concurrent.futures
 import io
 import json
@@ -24,24 +25,31 @@ class Fake:
         self.submits = 0
         self.queries = 0
         self.downloads = 0
+        self.uploads = 0
+        self.trace = []
         self.result = submit_result or {'taskId': 'task1', 'status': 'RUNNING'}
         self.query_results = queries or [{'taskId': 'task1', 'status': 'RUNNING'}]
         self.download_fails = download_fails
     def upload(self, path):
+        self.uploads += 1
+        self.trace.append('upload')
         return {'filename': sha(path), 'url': 'https://example.test/input?PRIVATE_SENTINEL'}
     def submit(self, path, body):
         self.submits += 1
+        self.trace.append('submit')
         if isinstance(self.result, Exception):
             raise self.result
         return self.result
     def query(self, task_id):
         self.queries += 1
+        self.trace.append('query')
         r = self.query_results[min(self.queries - 1, len(self.query_results) - 1)]
         if isinstance(r, Exception):
             raise r
         return r
     def download(self, url, dest):
         self.downloads += 1
+        self.trace.append('download')
         if self.downloads <= self.download_fails:
             raise TimeoutError('PRIVATE_SENTINEL')
         Path(dest).parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +99,70 @@ class RunnerTests(unittest.TestCase):
                           semantic_review={'status':'passed','input_digest':'input1'})
         with patch('factory.compute_input_digest',return_value='input1'):
             with self.assertRaisesRegex(ValueError,'10-second production cap'):preflight(self.project,self.entry)
+    def test_observed_dual_long_inputs_reach_node326_without_truncation(self):
+        for frames in (141,187,199,211):
+            with self.subTest(frames=frames):
+                entry=dict(self.entry,window_id='dual-long-'+str(frames),generation_frames=frames,
+                    duration=str(Fraction(frames,24)),reference_paths=['person.png','person.png'],
+                    production_authorized=True,semantic_review={'status':'passed','input_digest':'input1'})
+                entry['profile']=dict(entry['profile'],app_id='2107845954833907713')
+                fake=Fake()
+                with patch('factory.compute_input_digest',return_value='input1'):
+                    self.assertEqual(preflight(self.project,entry),'input1')
+                    aid=Runner(self.ledger,fake).submit_one(self.project,entry)
+                nodes=json.loads(self.ledger.row(aid)['request'])['body']['nodeInfoList']
+                self.assertEqual(next(n['fieldValue'] for n in nodes if n['nodeId']=='326'),str(frames))
+                self.assertEqual(fake.submits,1)
+                # Complete this independent offline capability probe before the next.
+                self.ledger.update(aid,state='DOWNLOADED')
+    def test_observed_single_non_grid_inputs_reach_node326(self):
+        for frames in (35,49,59,61):
+            with self.subTest(frames=frames):
+                entry=dict(self.entry,window_id='single-observed-'+str(frames),generation_frames=frames,
+                    duration=str(Fraction(frames,24)),production_authorized=True,
+                    semantic_review={'status':'passed','input_digest':'input1'})
+                fake=Fake()
+                with patch('factory.compute_input_digest',return_value='input1'):
+                    aid=Runner(self.ledger,fake).submit_one(self.project,entry)
+                nodes=json.loads(self.ledger.row(aid)['request'])['body']['nodeInfoList']
+                self.assertEqual(next(n['fieldValue'] for n in nodes if n['nodeId']=='326'),str(frames))
+                self.assertEqual(fake.submits,1);self.ledger.update(aid,state='DOWNLOADED')
+    def test_single_application_does_not_inherit_dual_long_counts(self):
+        for frames in (141,187,199,211):
+            entry=dict(self.entry,generation_frames=frames,duration=str(Fraction(frames,24)),
+                production_authorized=True,semantic_review={'status':'passed','input_digest':'input1'})
+            with patch('factory.compute_input_digest',return_value='input1'):
+                with self.assertRaisesRegex(ValueError,'this application'):preflight(self.project,entry)
+    def test_dual_application_does_not_inherit_single_only_counts(self):
+        for frames in (35,49,61):
+            entry=dict(self.entry,generation_frames=frames,duration=str(Fraction(frames,24)),
+                reference_paths=['person.png','person.png'],production_authorized=True,
+                semantic_review={'status':'passed','input_digest':'input1'})
+            entry['profile']=dict(entry['profile'],app_id='2107845954833907713')
+            with patch('factory.compute_input_digest',return_value='input1'):
+                with self.assertRaisesRegex(ValueError,'this application'):preflight(self.project,entry)
+    def test_unknown_integer_frame_count_is_not_inferred_from_ten_second_cap(self):
+        for app,refs in [('2107844752011010050',['person.png']),('2107845954833907713',['person.png','person.png'])]:
+            entry=dict(self.entry,generation_frames=240,duration='10',reference_paths=refs,
+                production_authorized=True,semantic_review={'status':'passed','input_digest':'input1'})
+            entry['profile']=dict(entry['profile'],app_id=app)
+            fake=Fake()
+            with patch('factory.compute_input_digest',return_value='input1'):
+                with self.assertRaisesRegex(ValueError,'this application'):
+                    Runner(self.ledger,fake).submit_one(self.project,entry)
+            self.assertEqual(fake.uploads,0);self.assertEqual(fake.submits,0)
+    def test_extended_legacy_profile_still_rejects_complete_duration_above_ten(self):
+        entry=dict(self.entry,generation_frames=264,duration='11',reference_paths=['person.png','person.png'],
+            production_authorized=True,semantic_review={'status':'passed','input_digest':'input1'})
+        entry['profile']=dict(entry['profile'],app_id='2107845954833907713')
+        with patch('factory.compute_input_digest',return_value='input1'):
+            with self.assertRaisesRegex(ValueError,'10-second production cap'):preflight(self.project,entry)
+    def test_legacy_profile_requires_observed_twenty_four_fps(self):
+        entry=dict(self.entry,duration='11/6',production_authorized=True,
+            source_contract={'window':{'generation_fps':'12'}},
+            semantic_review={'status':'passed','input_digest':'input1'})
+        with patch('factory.compute_input_digest',return_value='input1'):
+            with self.assertRaisesRegex(ValueError,'this application'):preflight(self.project,entry)
     def test_unset_resolution_preserves_existing_request(self):
         aid=self.submit(Fake())
         request=json.loads(self.ledger.row(aid)['request'])
@@ -529,10 +601,13 @@ class RunnerTests(unittest.TestCase):
         for code in ('804','813'):
             self.entry['window_id']='accepted-'+code
             fake=Fake({'code':code})
-            aid=self.submit(fake)
+            # Each code is an independent offline account; an UNKNOWN in the
+            # first fixture must now intentionally block the whole same account.
+            runner=Runner(self.ledger,fake,'offline-accepted-'+code)
+            aid=runner.submit_one(self.project,self.entry,self.validate)
             self.assertEqual(self.ledger.row(aid)['state'],'SUBMISSION_UNKNOWN')
             self.clock.now+=600
-            self.assertIsNone(self.submit(fake))
+            self.assertIsNone(runner.submit_one(self.project,self.entry,self.validate))
             self.assertEqual(fake.submits,1)
     def test_quality_failures_have_no_three_attempt_limit(self):
         fake = Fake()
@@ -558,6 +633,193 @@ class RunnerTests(unittest.TestCase):
         self.entry['input_digest'] = 'changed-ref'
         self.assertIsNone(self.submit(fake))
         self.assertEqual(fake.submits, 1)
+
+
+    def test_each_new_post_gets_fresh_handles_despite_unexpired_legacy_cache(self):
+        class FreshHandles(Fake):
+            def upload(inner,path):
+                super().upload(path)
+                return {'filename':'fresh-'+str(inner.uploads)}
+        fake=FreshHandles()
+        for name in ('person.png','video.mp4'):
+            self.ledger.db.execute('INSERT INTO uploads VALUES(?,?,?,?,?)',
+                ('default',sha(self.project/name),'legacy-ai-app',json.dumps({'filename':'expired-provider-handle'}),self.clock.now+21600))
+        first=self.submit(fake)
+        self.entry['window_id']='second-new-request'
+        second=self.submit(fake)
+        self.assertEqual(fake.submits,2)
+        self.assertEqual(fake.uploads,4)
+        requests=[json.loads(self.ledger.row(aid)['request'])['body']['nodeInfoList'] for aid in (first,second)]
+        handles=[{n['nodeId']:n['fieldValue'] for n in nodes if n['nodeId'] in ('137','321')} for nodes in requests]
+        self.assertEqual(handles,[{'137':'fresh-1','321':'fresh-2'},{'137':'fresh-3','321':'fresh-4'}])
+
+    def test_same_bytes_deduplicate_only_inside_one_post(self):
+        self.entry['profile']=dict(self.entry['profile'],app_id='2107845954833907713')
+        self.entry['reference_paths']=['person.png','person.png']
+        fake=Fake();self.submit(fake)
+        self.assertEqual(fake.uploads,2)
+        self.entry['window_id']='another-immutable-request';self.submit(fake)
+        self.assertEqual(fake.uploads,4)
+
+    def test_accepted_downloaded_and_failed_visual_same_inputs_do_not_upload(self):
+        fake=Fake();aid=self.submit(fake)
+        for state in ('RUNNING','QUEUED','RESULTS_READY','DOWNLOAD_FAILED','RESULTS_MISSING','DOWNLOADED','VISUAL_FAILED'):
+            with self.subTest(state=state):
+                self.ledger.update(aid,state=state)
+                self.assertIsNone(self.submit(fake))
+                self.assertEqual(fake.uploads,2)
+                self.assertEqual(fake.submits,1)
+
+    def test_explicit_visual_retry_after_preserves_permission_for_same_bytes(self):
+        fake=Fake();aid=self.submit(fake);self.ledger.update(aid,state='VISUAL_FAILED')
+        self.entry['retry_after']='not-the-failed-candidate'
+        self.assertIsNone(self.submit(fake));self.assertEqual(fake.uploads,2)
+        self.entry['retry_after']=aid
+        second=self.submit(fake)
+        self.assertTrue(second);self.assertNotEqual(second,aid)
+        self.assertEqual(fake.uploads,4);self.assertEqual(fake.submits,2)
+
+    def test_cooldown_stopped_and_full_accounts_do_not_upload(self):
+        fake=Fake();self.ledger.cooldown('default')
+        self.assertIsNone(self.submit(fake));self.assertEqual(fake.uploads,0)
+        self.clock.now+=61;self.ledger.stop('default')
+        self.assertIsNone(self.submit(fake));self.assertEqual(fake.uploads,0)
+        self.ledger.db.execute('UPDATE accounts SET stopped=0 WHERE alias=?',('default',))
+        for i in range(3):
+            aid=self.ledger.reserve('default',self.root/('known-'+str(i)),'old','digest')
+            self.ledger.update(aid,state='RUNNING',task_id='accepted-'+str(i))
+        self.assertIsNone(self.submit(fake));self.assertEqual(fake.uploads,0)
+        self.assertEqual(self.ledger.summary('default')['active'],3)
+
+    def test_unknown_other_project_blocks_new_uploads_and_paid_post(self):
+        unknown=self.ledger.reserve('default',self.root/'unknown-other','old','digest')
+        self.ledger.update(unknown,state='SUBMISSION_UNKNOWN')
+        fake=Fake()
+        self.assertIsNone(self.submit(fake))
+        with patch('rh_runner.preflight',return_value='input1'):
+            Runner(self.ledger,fake).tick(self.project,{'jobs':[self.entry]})
+        self.assertEqual(fake.uploads,0);self.assertEqual(fake.submits,0)
+        self.assertEqual(self.ledger.row(unknown)['state'],'SUBMISSION_UNKNOWN')
+
+    def test_foreign_submitting_stops_runner_before_upload(self):
+        self.assertTrue(self.ledger.reserve('default',self.root/'intent-in-flight','old','digest'))
+        fake=Fake();self.assertIsNone(self.submit(fake))
+        self.assertEqual(fake.uploads,0);self.assertEqual(fake.submits,0)
+
+    def test_unknown_account_barrier_is_atomic_after_upload_race(self):
+        ledger=self.ledger;root=self.root
+        class UnknownAppearsDuringUpload(Fake):
+            def upload(inner,path):
+                result=super().upload(path)
+                if inner.uploads==1:
+                    aid=ledger.reserve('default',root/'raced-unknown','other','other-digest')
+                    ledger.update(aid,state='SUBMISSION_UNKNOWN')
+                return result
+        fake=UnknownAppearsDuringUpload()
+        self.assertIsNone(self.submit(fake));self.assertEqual(fake.submits,0)
+        self.assertEqual(len(self.ledger.summary('default')['attempts']),1)
+        self.assertIsNone(self.ledger.reserve('default',self.project,'unrelated','new-digest'))
+
+    def test_strict_reserve_blocks_submitting_inside_transaction(self):
+        self.assertTrue(self.ledger.reserve('default',self.root/'old','old','digest'))
+        self.assertIsNone(self.ledger.reserve('default',self.project,'new','different',block_uncertain=True))
+
+    def test_unknown_first_post_stops_remaining_jobs_in_same_tick(self):
+        fake=Fake(TimeoutError('offline POST response lost'))
+        jobs=[dict(self.entry,window_id='new-'+str(i)) for i in range(3)]
+        with patch('rh_runner.preflight',return_value='input1'):
+            Runner(self.ledger,fake).tick(self.project,{'jobs':jobs})
+        self.assertEqual(fake.submits,1);self.assertEqual(fake.uploads,2)
+        self.assertEqual([r['state'] for r in self.ledger.summary('default')['attempts']],['SUBMISSION_UNKNOWN'])
+
+    def test_other_account_unknown_does_not_block_this_account(self):
+        aid=self.ledger.reserve('different-offline-account',self.root/'other','old','digest')
+        self.ledger.update(aid,state='SUBMISSION_UNKNOWN')
+        fake=Fake();self.assertTrue(self.submit(fake));self.assertEqual(fake.submits,1)
+
+    def test_upload_time_input_mutation_prevents_paid_post(self):
+        prompt=self.project/'prompt.txt'
+        class ChangedInput(Fake):
+            def upload(inner,path):
+                result=super().upload(path)
+                if inner.uploads==1:prompt.write_text('changed during upload')
+                return result
+        fake=ChangedInput()
+        with self.assertRaisesRegex(ValueError,'Inputs changed during upload'):
+            Runner(self.ledger,fake).submit_one(self.project,self.entry,lambda p,e:sha(prompt))
+        self.assertEqual(fake.submits,0)
+        self.assertEqual(self.ledger.summary('default')['attempts'],[])
+
+    def test_query_outage_beyond_five_attempts_recovers_same_paid_id(self):
+        success={'status':'SUCCESS','results':[{'url':'https://example.test/recovered.mp4','outputType':'mp4'}]}
+        fake=Fake(queries=[TimeoutError('offline transient query')]*6+[success])
+        aid=self.submit(fake);runner=Runner(self.ledger,fake);delays=[]
+        for _ in range(7):
+            self.clock.now=max(self.clock.now,self.ledger.row(aid)['next_poll'])
+            runner.recover(aid)
+            if self.ledger.row(aid)['state']!='DOWNLOADED':
+                delays.append(self.ledger.row(aid)['next_poll']-self.clock.now)
+        self.assertEqual(fake.queries,7);self.assertEqual(fake.submits,1);self.assertEqual(fake.uploads,2)
+        self.assertEqual(self.ledger.row(aid)['state'],'DOWNLOADED')
+        self.assertEqual(self.ledger.row(aid)['task_id'],'task1')
+        self.assertEqual(self.ledger.row(aid)['query_errors'],0)
+        self.assertTrue(all(0<=delay<=300 for delay in delays))
+        self.assertEqual(self.ledger.db.execute('SELECT count(*) FROM failures').fetchone()[0],0)
+
+    def test_download_outage_beyond_five_attempts_survives_restart(self):
+        success={'status':'SUCCESS','results':[{'url':'https://example.test/recovered.mp4','outputType':'mp4'}]}
+        fake=Fake(queries=[success],download_fails=6);aid=self.submit(fake);runner=Runner(self.ledger,fake)
+        for index in range(7):
+            self.clock.now=max(self.clock.now,self.ledger.row(aid)['next_poll'])
+            runner.recover(aid)
+            self.assertLessEqual(self.ledger.row(aid)['next_poll']-self.clock.now,300)
+            if index==3:
+                self.ledger.close();self.ledger=Ledger(self.root/'private/tasks.sqlite',self.clock)
+                runner=Runner(self.ledger,fake)
+        self.assertEqual(fake.downloads,7);self.assertEqual(fake.submits,1);self.assertEqual(fake.uploads,2)
+        self.assertEqual(self.ledger.row(aid)['state'],'DOWNLOADED')
+        self.assertEqual(self.ledger.row(aid)['task_id'],'task1')
+        self.assertEqual(self.ledger.row(aid)['download_errors'],0)
+        self.assertEqual(self.ledger.db.execute('SELECT count(*) FROM failures').fetchone()[0],0)
+
+    def test_defer_download_frees_slot_without_upload_or_transfer(self):
+        fake=Fake(queries=[{'status':'SUCCESS','results':[{'url':'https://example.test/r.mp4','outputType':'mp4'}]}])
+        aid=self.submit(fake);self.clock.now+=6;runner=Runner(self.ledger,fake)
+        runner.recover(aid,defer_download=True)
+        self.assertEqual(self.ledger.row(aid)['state'],'RESULTS_READY')
+        self.assertEqual(self.ledger.summary('default')['active'],0)
+        self.assertEqual(fake.downloads,0);self.assertEqual(fake.uploads,2)
+        runner.recover(aid)
+        self.assertEqual(self.ledger.row(aid)['state'],'DOWNLOADED')
+        self.assertEqual(fake.downloads,1);self.assertEqual(fake.submits,1);self.assertEqual(fake.uploads,2)
+
+    def test_tick_queries_refills_then_downloads_without_exceeding_three(self):
+        success={'status':'SUCCESS','results':[{'url':'https://example.test/r.mp4','outputType':'mp4'}]}
+        class TracedTasks(Fake):
+            def query(inner,task_id):
+                inner.queries+=1;inner.trace.append('query')
+                return success if task_id=='finished' else {'status':'RUNNING'}
+        fake=TracedTasks();old=self.ledger.reserve('default',self.root/'finished','old','d')
+        self.ledger.update(old,state='RUNNING',task_id='finished',next_poll=0)
+        for i in range(2):
+            aid=self.ledger.reserve('default',self.root/f'running-{i}','old','d')
+            self.ledger.update(aid,state='RUNNING',task_id=f'running-{i}',next_poll=0)
+        self.assertEqual(self.ledger.summary('default')['active'],3)
+        with patch('rh_runner.preflight',return_value='input1'):
+            Runner(self.ledger,fake).tick(self.project,{'jobs':[self.entry]})
+        self.assertEqual(fake.submits,1);self.assertEqual(fake.downloads,1)
+        self.assertLess(fake.trace.index('query'),fake.trace.index('submit'))
+        self.assertLess(fake.trace.index('submit'),fake.trace.index('download'))
+        self.assertEqual(self.ledger.summary('default')['active'],3)
+
+    def test_invalid_new_input_still_downloads_already_paid_result(self):
+        success={'status':'SUCCESS','results':[{'url':'https://example.test/r.mp4','outputType':'mp4'}]}
+        fake=Fake(queries=[success]);aid=self.submit(fake);self.clock.now+=6
+        with patch('rh_runner.preflight',side_effect=ValueError('New input not approved')):
+            with self.assertRaisesRegex(ValueError,'not approved'):
+                Runner(self.ledger,fake).tick(self.project,{'jobs':[dict(self.entry,window_id='new')]})
+        self.assertEqual(self.ledger.row(aid)['state'],'DOWNLOADED')
+        self.assertEqual(fake.submits,1);self.assertEqual(fake.uploads,2)
 
 
 class DownloadTests(unittest.TestCase):

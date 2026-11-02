@@ -579,7 +579,9 @@ def composition_digest(project, reviewed):
                    'plan':{**plan,'windows':[generation_window(w) for w in plan['windows']]},
                    'windows':[{'window':generation_window(window),'input_digest':record['input_digest'],
                                'task_id':record['task_id'],'file_signature':record['file_signature'],
-                               'source_to_output':record['source_to_output']}
+                               'source_to_output':record['source_to_output'],
+                               **({'measured_mapping_digest':record['measured_mapping']['mapping_digest']}
+                                  if record.get('mapping_mode')=='measured-source-poses' else {})}
                               for window,record in reviewed]})
 
 
@@ -719,16 +721,30 @@ def review_guard(project, final=False):
         candidate_frames = technical_report['video']['frames']
         if any(i >= len(candidate_frames) for i in mapping):
             raise ValueError('Candidate map exceeds actual decoded frame count')
+        # New inspected candidates explicitly record observation of the COMPLETE
+        # output; old strict-PTS reviews retain their original contract.
+        if 'output_clock_review' in record:
+            clock=record['output_clock_review']
+            if (clock.get('status')!='observed' or not clock.get('notes') or
+                not coverage(clock.get('intervals',[]),range(len(candidate_frames)))):
+                raise ValueError('Complete actual output clock must be observed before selecting poses')
         context_start = window['context_interval'][0]
         source_origin = Fraction(source['video']['frames'][context_start]['time'])
         candidate_origin = Fraction(candidate_frames[0]['time'])
         smallest_duration = min(Fraction(f['duration']) for f in candidate_frames)
         tolerance = smallest_duration/2
-        for source_index,output_index in zip(range(*window['source_interval']),mapping):
-            expected_time=Fraction(projection['source_to_generation'][str(source_index)],1)/Fraction(window['generation_fps'])
-            observed_time = Fraction(candidate_frames[output_index]['time'])-candidate_origin
-            if abs(expected_time-observed_time)>tolerance:
-                raise ValueError('Source-to-candidate map disagrees with actual frame times')
+        mode=record.get('mapping_mode','nominal-pts')
+        if mode=='nominal-pts':
+            for source_index,output_index in zip(range(*window['source_interval']),mapping):
+                expected_time=Fraction(projection['source_to_generation'][str(source_index)],1)/Fraction(window['generation_fps'])
+                observed_time = Fraction(candidate_frames[output_index]['time'])-candidate_origin
+                if abs(expected_time-observed_time)>tolerance:
+                    raise ValueError('Source-to-candidate map disagrees with actual frame times')
+        elif mode=='measured-source-poses':
+            import candidate_review
+            candidate_review.validate_measured_mapping(project,source,analysis,window,entry,record)
+        else:
+            raise ValueError('Unknown candidate mapping mode')
         if len(set(mapping)) != len(mapping):
             temporal = record.get('temporal_mapping_review',{})
             if temporal.get('status') != 'passed' or not temporal.get('resampling_loss_disclosed') or not temporal.get('notes'):
@@ -770,6 +786,8 @@ def inspect_candidate(project,window_id,task_id,candidate,deps=None,scalar_cpu=F
             'file_signature':file_signature(project,candidate),
             'technical':{'status':'passed','report':report},
             'visual':{'status':'pending','dynamic_intervals':[],'native_intervals':[],'notes':''},
+            'mapping_mode':'nominal-pts',
+            'output_clock_review':{'status':'pending','intervals':[],'notes':''},
             'retained_output_interval':[min(mapping),max(mapping)+1],'source_to_output':mapping,
             'temporal_mapping_review':{'status':'pending','resampling_loss_disclosed':len(set(mapping))!=len(mapping),
                                        'notes':'Nearest-PTS proposal only; Codex must check source action timing.'}}
@@ -940,6 +958,18 @@ def chinese_skill_title(original_name, source_sha, display_name=None):
 def build_skill(project, skills_root, status='draft', display_name=None, delivery_review=None):
     project, root = Path(project), Path(skills_root)
     source, analysis = validate_analysis(project)
+    # Source evidence may include neutral manual crops/constraints, so do not
+    # guess neutrality from filenames. Reject known private run-artifact kinds.
+    evidence=project/'evidence'
+    if evidence.exists():
+        for item in evidence.rglob('*.json'):
+            try:
+                payload=read(item)
+            except (ValueError,UnicodeError):
+                continue
+            if isinstance(payload,dict) and payload.get('kind') in (
+                'complete-output-evidence','independent-canonical-rgb-pts','reviewed-postprocessed-film'):
+                raise ValueError('Current-run candidate/delivery evidence cannot enter a source-only skill; preserve it outside source evidence')
     if status == 'ready':
         if delivery_review:
             import delivery
@@ -1070,7 +1100,10 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             'dedicated_skill_ready':status=='ready','future_identity_review_required':True,
             'original_photo_correction_runtime':(scripts/'face_swap.py').exists(),
             'hard_max_complete_generation_seconds':10,'default_fixed_segment_seconds':None,
-            'account_concurrency_target':3,'account_concurrency_cap':3})
+            'account_concurrency_target':3,'account_concurrency_cap':3,
+            'complete_output_evidence_runtime':(scripts/'candidate_review.py').exists(),
+            'explicit_measured_source_pose_mapping':True,
+            'canonical_RGB_PTS_verification':(scripts/'candidate_review.py').exists()})
         manifest = {'schema_version': 1, 'name': name, 'status': status, 'source_sha256': full_sha,
                     'display_name':title,'analysis_digest': neutral_analysis_digest, 'files': {}}
         for path in stage.rglob('*'):

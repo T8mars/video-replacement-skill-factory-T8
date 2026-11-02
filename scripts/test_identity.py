@@ -74,8 +74,9 @@ class SwapRunnerTests(unittest.TestCase):
             'reference_paths':['photo'],'video_path':'video','window_id':'pilot','input_digest':'fixture'}
         self.ledger=rh.Ledger(self.root/'private.sqlite')
         class Fake:
-            def __init__(self):self.calls=[];self.error=None;self.mutate=None
+            def __init__(self):self.calls=[];self.error=None;self.mutate=None;self.uploads=0
             def upload(fake,path):
+                fake.uploads+=1
                 if fake.mutate:change,fake.mutate=fake.mutate,None;change()
                 return {'filename':rh.sha(path)}
             def submit(fake,path,body):
@@ -99,6 +100,16 @@ class SwapRunnerTests(unittest.TestCase):
         self.assertEqual(self.ledger.row(aid)['state'],'SUBMISSION_UNKNOWN')
         self.assertIsNone(self.runner.submit_one(self.p,self.entry,self.validate))
         self.assertEqual(len(self.fake.calls),1)
+    def test_accepted_face_task_does_not_reupload_on_repeat(self):
+        self.runner.submit_one(self.p,self.entry,self.validate)
+        uploads=self.fake.uploads
+        self.assertIsNone(self.runner.submit_one(self.p,self.entry,self.validate))
+        self.assertEqual(self.fake.uploads,uploads);self.assertEqual(len(self.fake.calls),1)
+    def test_other_project_unknown_blocks_face_upload_and_post(self):
+        attempt=self.ledger.reserve('default',self.root/'other','other','other-digest')
+        self.ledger.update(attempt,state='SUBMISSION_UNKNOWN')
+        self.assertIsNone(self.runner.submit_one(self.p,self.entry,self.validate))
+        self.assertEqual(self.fake.uploads,0);self.assertFalse(self.fake.calls)
     def test_same_account_cap_three_blocks_fourth_correction(self):
         import shutil
         for i in range(4):

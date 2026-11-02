@@ -27,6 +27,14 @@ POLLABLE = ('QUEUED', 'RUNNING', 'SUCCESS_RESULTS_PENDING', 'RESULTS_MISSING', '
 DEFERRED_CODES = ('415', '421', '429', '1003', '1010', '1011')
 BASE = 'https://www.runninghub.ai'
 OBSERVED_RESULT_HOST = 'rh-hk-images-1252422369.cos.ap-hongkong.myqcloud.com'
+# Exact app-specific accepted/downloaded inputs, including the 2026-11-02
+# production evidence. These are input capabilities, never visual approval or
+# permission to skip an independently reviewed pilot for a new source/identity.
+LEGACY_FRAME_COUNTS = {
+    '2107844752011010050': (22, 35, 39, 49, 56, 59, 61, 73, 90, 107),
+    '2107845954833907713': (22, 39, 56, 58, 59, 70, 71, 73, 76, 82, 90, 97,
+                           100, 107, 112, 141, 187, 199, 211),
+}
 
 
 def codex_home():
@@ -288,33 +296,43 @@ class Ledger:
         self.db.execute('INSERT OR IGNORE INTO accounts(alias) VALUES(?)', (alias,))
         return dict(self.db.execute('SELECT * FROM accounts WHERE alias=?', (alias,)).fetchone())
 
-    def reserve(self, alias, project, window, digest, retry_after=None):
+    def has_uncertain(self, alias, include_submitting=True):
+        states = ('SUBMITTING', 'SUBMISSION_UNKNOWN') if include_submitting else ('SUBMISSION_UNKNOWN',)
+        return self.db.execute('SELECT 1 FROM attempts WHERE account=? AND state IN (' +
+                               ','.join('?' for _ in states) + ') LIMIT 1', (alias, *states)).fetchone() is not None
+
+    def can_submit(self, alias, project, window, digest, retry_after=None, block_uncertain=True):
+        """Read-only admission hint; reserve() repeats all checks atomically before POST."""
+        a = self.account(alias)
+        if a['stopped'] or a['cooldown'] > self.clock():
+            return False
+        if self.has_uncertain(alias, include_submitting=block_uncertain):
+            return False
+        project = str(Path(project).resolve())
+        prior = self.db.execute('SELECT * FROM attempts WHERE account=? AND project=? AND window=? ORDER BY created DESC,rowid DESC LIMIT 1',
+                                (alias, project, window)).fetchone()
+        if prior and prior['state'] in ACTIVE:
+            return False
+        same = self.db.execute('SELECT * FROM attempts WHERE account=? AND project=? AND window=? AND digest=? ORDER BY created DESC,rowid DESC LIMIT 1',
+                               (alias, project, window, digest)).fetchone()
+        if same and same['state'] not in ('EXECUTION_FAILED', 'DEFERRED'):
+            if same['state'] != 'VISUAL_FAILED' or retry_after != same['id']:
+                return False
+        failure = self.db.execute('SELECT count FROM failures WHERE account=? AND project=? AND window=?',
+                                  (alias, project, window)).fetchone()
+        if failure and failure['count'] >= 3:
+            return False
+        used = self.db.execute('SELECT count(*) FROM attempts WHERE account=? AND state IN (?,?,?,?)',
+                               (alias, *ACTIVE)).fetchone()[0]
+        return used < a['cap']
+
+    def reserve(self, alias, project, window, digest, retry_after=None, block_uncertain=False):
         self.db.execute('BEGIN IMMEDIATE')
         try:
-            a = self.account(alias)
-            if a['stopped'] or a['cooldown'] > self.clock():
-                self.db.execute('COMMIT')
-                return None
-            prior = self.db.execute('SELECT * FROM attempts WHERE account=? AND project=? AND window=? ORDER BY created DESC,rowid DESC LIMIT 1',
-                                    (alias, str(Path(project).resolve()), window)).fetchone()
-            if prior and prior['state'] in ACTIVE:
-                # A different digest is a new input revision, but old cloud work is still active.
-                self.db.execute('COMMIT')
-                return None
-            same = self.db.execute('SELECT * FROM attempts WHERE account=? AND project=? AND window=? AND digest=? ORDER BY created DESC,rowid DESC LIMIT 1',
-                                   (alias, str(Path(project).resolve()), window, digest)).fetchone()
-            if same and same['state'] not in ('EXECUTION_FAILED', 'DEFERRED'):
-                # Visual retry must explicitly refer to its failed immutable candidate.
-                if same['state'] != 'VISUAL_FAILED' or retry_after != same['id']:
-                    self.db.execute('COMMIT')
-                    return None
-            f = self.db.execute('SELECT count FROM failures WHERE account=? AND project=? AND window=?',
-                                (alias, str(Path(project).resolve()), window)).fetchone()
-            if f and f['count'] >= 3:
-                self.db.execute('COMMIT')
-                return None
-            used = self.db.execute('SELECT count(*) FROM attempts WHERE account=? AND state IN (?,?,?,?)', (alias, *ACTIVE)).fetchone()[0]
-            if used >= a['cap']:
+            # UNKNOWN is always an account-wide barrier, including legacy callers.
+            # Production callers also serialize their brief SUBMITTING phase; direct
+            # ledger reservation probes retain the old cap-testing interface.
+            if not self.can_submit(alias, project, window, digest, retry_after, block_uncertain):
                 self.db.execute('COMMIT')
                 return None
             aid = uuid.uuid4().hex
@@ -380,6 +398,7 @@ class Ledger:
         self.event(aid, 'QUERY_DEFERRED', {'code': str(code)})
 
     def cooldown(self, alias):
+        self.account(alias)
         self.db.execute('UPDATE accounts SET cooldown=MAX(cooldown,?) WHERE alias=?',
                         (self.clock()+60, alias))
 
@@ -424,11 +443,12 @@ def preflight(project, entry):
     text = asset(project, entry['prompt_path']).read_text(encoding='utf-8')
     if p['kind'] == 'legacy-ai-app':
         validate_legacy_canvas(entry)
-        if p['app_id'] not in ('2107844752011010050', '2107845954833907713'):
+        if p['app_id'] not in LEGACY_FRAME_COUNTS:
             raise ValueError('Unknown app requires a reviewed adapter/profile')
         expected = 1 if p['app_id'] == '2107844752011010050' else 2
-        if len(refs) != expected or entry['generation_frames'] not in (22, 39, 56, 73, 90, 107):
-            raise ValueError('Legacy slot/frame count is outside observed profile')
+        if (len(refs) != expected or Fraction(window['generation_fps']) != 24 or
+                entry['generation_frames'] not in LEGACY_FRAME_COUNTS[p['app_id']]):
+            raise ValueError('Legacy slot/frame count/fps is outside this application observed profile')
     elif p['kind'] == 'standard-h3':
         if not 1 <= len(refs) <= 9 or str(entry['duration']) not in tuple(str(n) for n in range(5, 16)):
             raise ValueError('Standard H3 reference/duration limit')
@@ -459,31 +479,33 @@ class Runner:
                                   (self.account, self.key_fingerprint(), '1014'))
 
     def upload(self, path, semantics):
-        h = sha(path)
-        row = self.ledger.db.execute('SELECT data,expires FROM uploads WHERE account=? AND sha=? AND semantics=?', (self.account, h, semantics)).fetchone()
-        if row and row['expires'] > self.ledger.clock():
-            return json.loads(row['data'])
-        data = self.transport.upload(path)
-        self.ledger.db.execute('INSERT OR REPLACE INTO uploads VALUES(?,?,?,?,?)', (self.account, h, semantics, json.dumps(data), self.ledger.clock() + 21600))
-        return data
+        # Provider temporary node321 handles expired inside the former six-hour TTL.
+        # Cache only inside one new request; recovery never calls this method.
+        return self.transport.upload(path)
 
     def submit_one(self, project, entry, validator=None):
         validator = validator or preflight
         digest = validator(project, entry)
-        account = self.ledger.account(self.account)
-        if account['stopped'] or account['cooldown'] > self.ledger.clock():
+        if not self.ledger.can_submit(self.account, project, entry['window_id'], digest, entry.get('retry_after')):
             return None
         if entry['profile']['kind'] == 'standard-h3' and self.ledger.db.execute(
             'SELECT 1 FROM model_key_denials WHERE account=? AND key_fingerprint=?',
             (self.account, self.key_fingerprint())).fetchone():
             return None
-        # Uploads do not reserve a cloud execution slot and are cached by bytes.
+        # Uploads do not reserve an execution slot. Within this one POST only,
+        # repeated references with identical bytes can share a freshly made handle.
         kind = entry['profile']['kind']
         if kind=='legacy-ai-app':
             validate_legacy_canvas(entry)
         resolution_nodes=legacy_resolution_nodes(entry['profile']) if kind=='legacy-ai-app' else []
-        refs = [self.upload(asset(project, p), kind) for p in entry['reference_paths']]
-        video = self.upload(asset(project, entry['video_path']), kind)
+        uploaded = {}
+        def request_upload(path):
+            fingerprint = sha(path)
+            if fingerprint not in uploaded:
+                uploaded[fingerprint] = self.upload(path, kind)
+            return uploaded[fingerprint]
+        refs = [request_upload(asset(project, p)) for p in entry['reference_paths']]
+        video = request_upload(asset(project, entry['video_path']))
         prompt = asset(project, entry['prompt_path']).read_text(encoding='utf-8')
         p = entry['profile']
         if kind == 'legacy-ai-app':
@@ -506,7 +528,8 @@ class Runner:
         # Recheck after uploads: another process might change any input.
         if validator(project, entry) != digest:
             raise ValueError('Inputs changed during upload')
-        aid = self.ledger.reserve(self.account, project, entry['window_id'], digest, entry.get('retry_after'))
+        aid = self.ledger.reserve(self.account, project, entry['window_id'], digest,
+                                  entry.get('retry_after'), block_uncertain=True)
         if not aid:
             return None
         self.ledger.update(aid, request=json.dumps({'path': path, 'body': body}, ensure_ascii=False))
@@ -534,11 +557,11 @@ class Runner:
         self.ledger.update(aid, task_id=str(tid), receipt=json.dumps(res), state='RUNNING', next_poll=self.ledger.clock() + 5)
         return aid
 
-    def recover(self, aid):
+    def recover(self, aid, defer_download=False):
         row = self.ledger.row(aid)
         if row['state'] not in POLLABLE or not row['task_id']:
             return
-        if row['query_errors'] >= 3 or row['download_errors'] >= 3 or row['state'] == 'RESULTS_MISSING':
+        if row['state'] == 'RESULTS_MISSING':
             return
         if row['next_poll'] > self.ledger.clock():
             return
@@ -550,10 +573,12 @@ class Runner:
                 return
             if e.code in ('401', '402', '403', '1913'):
                 self.ledger.stop(self.account)
-            self.ledger.update(aid, query_errors=row['query_errors'] + 1, next_poll=self.ledger.clock() + 60)
+            self.ledger.update(aid, query_errors=row['query_errors'] + 1,
+                               next_poll=self.ledger.clock() + min(300, 60 * 2 ** min(3, row['query_errors'])))
             return
         except Exception:
-            self.ledger.update(aid, query_errors=row['query_errors'] + 1, next_poll=self.ledger.clock() + min(60, 5 * 2 ** min(4, row['query_errors'])))
+            self.ledger.update(aid, query_errors=row['query_errors'] + 1,
+                               next_poll=self.ledger.clock() + min(300, 5 * 2 ** min(6, row['query_errors'])))
             return
         state = str(res.get('status') or '')
         code = str(res.get('errorCode') or res.get('code') or '')
@@ -570,7 +595,8 @@ class Runner:
             self.ledger.update(aid, next_poll=self.ledger.clock() + 60)
             return
         if state in ('QUEUED', 'RUNNING'):
-            self.ledger.update(aid, state=state, receipt=json.dumps(res), next_poll=self.ledger.clock() + 10 + random.random() * 2)
+            self.ledger.update(aid, state=state, receipt=json.dumps(res), query_errors=0,
+                               next_poll=self.ledger.clock() + 10 + random.random() * 2)
             return
         if state != 'SUCCESS':
             self.ledger.update(aid, next_poll=self.ledger.clock() + 30)
@@ -586,7 +612,9 @@ class Runner:
             return
         url = videos[0]['url']
         dest = Path(row['project']) / 'candidates' / row['window'] / aid / 'output.mp4'
-        self.ledger.update(aid, state='RESULTS_READY', result_url=url, receipt=json.dumps(res), output=str(dest))
+        self.ledger.update(aid, state='RESULTS_READY', result_url=url, receipt=json.dumps(res), output=str(dest), query_errors=0)
+        if defer_download:
+            return
         try:
             if not dest.exists():
                 self.transport.download(url, dest)
@@ -594,42 +622,57 @@ class Runner:
                 raise ValueError('Candidate output missing')
             self.ledger.update(aid, state='DOWNLOADED', download_errors=0, next_poll=0)
         except Exception:
-            self.ledger.update(aid, state='DOWNLOAD_FAILED', download_errors=row['download_errors'] + 1, next_poll=self.ledger.clock() + 30)
+            self.ledger.update(aid, state='DOWNLOAD_FAILED', download_errors=row['download_errors'] + 1,
+                               next_poll=self.ledger.clock() + min(300, 30 * 2 ** min(4, row['download_errors'])))
 
     def tick(self, project, queue):
-        # Known tasks in all projects recover before this project's new production windows.
+        # Query first, release completed execution slots, refill, then transfer.
+        # A long completed-file download must not leave authorized paid slots idle.
         rows = self.ledger.db.execute('SELECT id FROM attempts WHERE account=? AND state IN (?,?,?,?,?,?) ORDER BY created', (self.account, *POLLABLE)).fetchall()
         for r in rows:
-            self.recover(r['id'])
+            self.recover(r['id'], defer_download=True)
         # All entries preflight before any new execution; installation/testing never authorizes them.
         jobs = queue['jobs']
-        for entry in jobs:
-            if entry.get('passthrough'):
-                continue
-            preflight(project, entry)
-        for entry in jobs:
-            if entry.get('passthrough'):
-                continue
-            a = self.ledger.account(self.account)
-            if a['stopped'] or a['cooldown'] > self.ledger.clock():
-                break
-            # A documented new backend gets one production pilot, not a full unreviewed batch.
-            if entry['profile'].get('quality_evidence') != 'case-verified' and not entry.get('pilot'):
-                continue
-            if entry['profile'].get('quality_evidence') != 'case-verified':
-                prior_routes = self.ledger.db.execute('SELECT request FROM attempts WHERE account=? AND project=? AND window<>?',
-                                                     (self.account, str(Path(project).resolve()), entry['window_id'])).fetchall()
-                if any(same_profile_route(entry['profile'], r['request']) for r in prior_routes):
+        try:
+            for entry in jobs:
+                if entry.get('passthrough'):
                     continue
-            try:
-                self.submit_one(project, entry)
-            except ApiFailure as e:
-                if e.code in ('401', '402', '403', '1913'):
-                    self.ledger.stop(self.account)
-                elif e.code in DEFERRED_CODES:
+                preflight(project, entry)
+            for entry in jobs:
+                if entry.get('passthrough'):
+                    continue
+                a = self.ledger.account(self.account)
+                if a['stopped'] or a['cooldown'] > self.ledger.clock() or self.ledger.has_uncertain(self.account):
+                    break
+                # A new backend gets one production pilot, not an unreviewed batch.
+                if entry['profile'].get('quality_evidence') != 'case-verified' and not entry.get('pilot'):
+                    continue
+                if entry['profile'].get('quality_evidence') != 'case-verified':
+                    prior_routes = self.ledger.db.execute('SELECT request FROM attempts WHERE account=? AND project=? AND window<>?',
+                                                         (self.account, str(Path(project).resolve()), entry['window_id'])).fetchall()
+                    if any(same_profile_route(entry['profile'], r['request']) for r in prior_routes):
+                        continue
+                try:
+                    self.submit_one(project, entry)
+                    if self.ledger.has_uncertain(self.account):
+                        break
+                except ApiFailure as e:
+                    if e.code in ('401', '402', '403', '1913'):
+                        self.ledger.stop(self.account)
+                    elif e.code in DEFERRED_CODES:
+                        self.ledger.cooldown(self.account)
+                        break
+                    raise
+                except (urllib.error.URLError, TimeoutError, ConnectionError):
+                    # Upload failed before a paid intent; preserve known work and wait.
                     self.ledger.cooldown(self.account)
                     break
-                raise
+        finally:
+            # Even an unapproved new input must not block already-paid downloads.
+            rows = self.ledger.db.execute("SELECT id FROM attempts WHERE account=? AND state IN ('RESULTS_READY','DOWNLOAD_FAILED') AND next_poll<=? ORDER BY created",
+                                          (self.account, self.ledger.clock())).fetchall()
+            for r in rows:
+                self.recover(r['id'])
         return self.ledger.summary(self.account)
 
 

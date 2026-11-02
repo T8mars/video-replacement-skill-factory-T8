@@ -163,7 +163,9 @@ def inspect(path, deps=None, scalar_cpu=False, evidence_dir=None):
                 if getattr(frame,'rotation',0):
                     video['rotation']=str(frame.rotation)
                     video['display_transform_status']='requires_verified_normalization'
-                for side in frame.side_data.values():
+                # PyAV's container iterates SideData objects, not Mapping keys.
+                # Mapping.values() raises KeyError on PyAV18 with ordinary H264 SEI.
+                for side in frame.side_data:
                     if getattr(side.type, 'name', '') == 'DISPLAYMATRIX':
                         import struct
                         raw = bytes(side)

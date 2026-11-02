@@ -61,6 +61,9 @@ def check_tree(files, known_keys=()):
             errors.append('manifest/meta: factory identity mismatch')
         if manifest['version'] != meta['version']:
             errors.append('manifest/meta: version mismatch')
+        expected_runtime=set(policy['runtime_files'])-{'manifest.json'}
+        if set(manifest['files']) != expected_runtime:
+            errors.append('manifest: runtime whitelist coverage is incomplete or contains extra members')
         for name, sha in manifest['files'].items():
             if name not in policy['runtime_files'] or forbidden_path(name):
                 errors.append(name+': invalid runtime manifest member')

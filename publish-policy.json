@@ -24,7 +24,10 @@
     "scripts/identity_clock.py",
     "scripts/face_detail.py",
     "scripts/test_identity.py",
-    "references/identity-correction.md"
+    "references/identity-correction.md",
+    "scripts/candidate_review.py",
+    "scripts/test_candidate_review.py",
+    "references/production-reliability.md"
   ],
   "repository_files": [
     ".gitignore",

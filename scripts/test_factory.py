@@ -146,6 +146,21 @@ class FactoryIntegration(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'hard cap 10 seconds'):
             factory.default_plan(source,analysis,job)
 
+    def test_receipt_verified_dual_profile_keeps_six_second_source_shot_whole(self):
+        import rh_runner
+        profile=factory.read(Path(factory.__file__).parent.parent/'assets/backend-profiles.json')['profiles']['legacy-two']
+        self.assertEqual(profile['limits']['frame_counts'],list(rh_runner.LEGACY_FRAME_COUNTS[profile['app_id']]))
+        video=video_fixture(self.temp/'six-second-dual.mp4',fps=24,pts=list(range(144)))
+        source=factory.ingest(self.temp/'six-second-dual-run',video,DEPS,SCALAR)
+        analysis={'roles':[{'slot':slot,'appearances':[[0,144]]} for slot in ['A','B']],
+            'shots':[{'id':'whole-shot','start':0,'end':144,'roles':['A','B'],'description_en':'{{A}} and {{B}} retain the whole source shot.'}]}
+        job={'profile':profile,'references':{'A':self.job['references']['A'],'B':self.job['references']['A']}}
+        plan=factory.default_plan(source,analysis,job)
+        self.assertEqual(len(plan['windows']),1)
+        self.assertEqual(plan['windows'][0]['source_interval'],[0,144])
+        self.assertEqual(plan['windows'][0]['generation_frames'],187)
+        self.assertLessEqual(Fraction(187,24),10)
+
     def test_source_same_resume_and_new_source_rejected(self):
         self.assertEqual(factory.ingest(self.project,self.video,DEPS,SCALAR)['source'],self.source['source'])
         other=video_fixture(self.temp/'other.mp4',pts=[0])
@@ -1109,6 +1124,12 @@ class FactoryIntegration(unittest.TestCase):
         record['visual']={'status':'passed','dynamic_intervals':[[0,4]],'native_intervals':[[0,4]],
                           'notes':'Synthetic source fixture only; no real generation review.'}
         reviews=factory.read(self.project/'reviews.json')
+        reviews['windows']['window_002']=record
+        factory.write(self.project/'reviews.json',reviews)
+        with self.assertRaisesRegex(ValueError,'actual output clock'):
+            factory.review_guard(self.project)
+        record['output_clock_review']={'status':'observed','intervals':[[0,record['technical']['report']['video']['frame_count']]],
+            'notes':'Synthetic fixture complete actual clock observed; no production visual claim.'}
         reviews['windows']['window_002']=record
         factory.write(self.project/'reviews.json',reviews)
         guarded=factory.review_guard(self.project)

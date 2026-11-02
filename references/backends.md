@@ -2,7 +2,7 @@
 
 profile读取 [backend-profiles.json](../assets/backend-profiles.json) 复制到job。已观察能力与官方文档分开，未知不猜。
 
-legacy `POST /openapi/v2/run/ai-app/<app_id>`：nodeInfoList中137.image第一身份filename、139.image第二身份filename（双图）、138.value提示词、321.video派生视频filename、326.value帧数；instanceType=plus/usePersonalQueue=false。本机实测帧数22/39/56/73/90/107及24fps，不推定任意整数/三人物。旧加载节点需要音轨，输入派生静音仅接口兼容，最终不混入该轨。
+legacy `POST /openapi/v2/run/ai-app/<app_id>`：nodeInfoList中137.image第一身份filename、139.image第二身份filename（双图）、138.value提示词、321.video派生视频filename、326.value帧数；instanceType=plus/usePersonalQueue=false。按assets/backend-profiles.json与rh_runner.LEGACY_FRAME_COUNTS的各应用离散实证帧数提交，帧率24；双图成功受理/下载已覆盖141/187/199/211等，单图不得继承这些长度，也不推定任意整数/三人物。10秒仍是完整输入硬限制，成功受理不证明保真。旧加载节点需要音轨，输入派生静音仅接口兼容，最终不混入该轨。
 
 standard `POST /openapi/v2/minimax/hailuo-h3/multimodal-to-video`：prompt、imageUrls、videoUrls、resolution、duration、ratio、aigc_watermark。官方schema最多9图/3视频/3音频、prompt≤20480字符、2K或768P、duration字符串5…15、ratio adaptive或枚举。当前runner只发送一个动作视频与身份图，不发送audioUrls，原声后期保留。输出fps/frame_count实际测量，图数量不是已验证角色保真数量。[官方H3 schema](https://www.runninghub.ai/runninghub-api-doc-en/api-495380675.md)
 
@@ -16,11 +16,11 @@ standard `POST /openapi/v2/minimax/hailuo-h3/multimodal-to-video`：prompt、ima
 
 ledger私有保存精确request/receipt/上传/result URL，公开status不含这些。POST前原子创建attempt/digest占槽，落request后发送，taskId立即落receipt。超时/无确定拒绝/HTTP5xx可能已执行，为SUBMISSION_UNKNOWN；崩溃留下SUBMITTING也占位。未证实provider idempotency，禁止不知taskId自动重发，官方任务历史对账后recover-unknown。
 
-只已知云端终态释放生成槽，本地worker消失不能释放。SUCCESS空results保持task查询，三次缺失为RESULTS_MISSING；DOWNLOAD_FAILED只查询/下载，绝不回生成队列。上传缓存SHA+接口语义+有限TTL，过期只重传。下载.part限时/长度/实际解码后晋升不可变候选，失败保task。
+只已知云端终态释放生成槽，本地worker消失不能释放。SUCCESS空results保持task查询，三次缺失为RESULTS_MISSING；DOWNLOAD_FAILED只查询/下载，绝不回生成队列。新的付费请求重新上传，单请求内同字节去重；旧跨请求6小时句柄缓存不再使用，因为实测期限内临时node321路径已失效。原ID恢复不上传、不重投。下载.part限时/长度/实际解码后晋升不可变候选，失败保task。
 
 已知结果HTTPS握手EOF的恢复已进入Transport.download：仅对本机实际出现问题的COS结果主机，读取Google与Cloudflare两个独立HTTPS DNS的实时A记录，过滤非公共IPv4，要求公共地址交集，再用curl临时解析。原HTTPS URL、SNI、主机名和证书校验保持；curl也限制重定向为HTTPS。没有公共交集或其他主机时保持DOWNLOAD_FAILED，等待原任务下载恢复。每次下载使用独立.part，完整ffmpeg解码后以不覆盖已有文件的原子操作晋升；多个worker也不能覆盖已晋升候选。需要本机curl及ffmpeg。不固定旧IP、不改系统DNS、不关闭证书校验、不改HTTP、不把下载失败变成新的付费生成。
 
-SQLite账户scope合计最多3个SUBMITTING/UNKNOWN/QUEUED/RUNNING；有已授权且已审批的待生成工作时，Codex调度目标也是3，收尾用不同修复方案补齐工作槽，具体见workflow.md。旧工具未导入的外部任务不声称已纳管。421全账户至少60秒冷却、仍恢复已知任务；401/402/403/1913停新增；API/执行连续3失败停受影响路径；视觉无限、有失败帧与改动假设。resume用于已获继续授权或问题修正，历史不清除。
+SQLite账户scope合计最多3个SUBMITTING/UNKNOWN/QUEUED/RUNNING；任意SUBMITTING或UNKNOWN先对账，禁止其他新增，原子reserve再检查；有已授权且已审批的待生成工作时，Codex调度目标也是3，收尾用不同修复方案补齐工作槽，具体见workflow.md。旧工具未导入的外部任务不声称已纳管。421全账户至少60秒冷却、仍恢复已知任务；401/402/403/1913停新增；API/执行连续3失败停受影响路径；视觉无限、有失败帧与改动假设。resume用于已获继续授权或问题修正，历史不清除。tick按查询→补位→下载运行。临时query/download错误超过3次仍按退避持续恢复原ID，单次退避最多300秒，与三次生成执行失败分开。
 
 用户允许满队列后等待恢复。尚未受理、没有taskId的明确415/421/429/1003/1010/1011提交拒绝才作为DEFERRED，账户至少60秒持久冷却后恢复提交，不计入三次执行失败，也不释放仍在云端执行的其他任务。上传或已知task查询遇到同类繁忙也等待，不增加技术失败计数。已知task查询即使status=FAILED，明确繁忙码仍保持原state/taskId/并发占位，保存回执、至少60秒后继续查询原ID；不得转DEFERRED后重POST。defer_submission拒绝处理已有taskId的记录。804/813表示任务运行中或已受理；有taskId沿用查询，无taskId保存为未知提交并对账，绝不作为“队列满”自动重POST。HTTP5xx、超时或无明确拒绝仍保留未知提交保护。[官方队列错误码](https://www.runninghub.cn/runninghub-api-doc-en/doc-8287467)
 
@@ -40,4 +40,4 @@ SQLite账户scope合计最多3个SUBMITTING/UNKNOWN/QUEUED/RUNNING；有已授�
 实际曾遇到竖屏源生成1920×1088横屏；未公开时发送node115比例也被忽略，两个候选均拒绝。新公开的115+214实际复测得到1088×1920竖屏、24fps、107帧，确认方向生效。分辨率网格使DAR偏离精确9:16约0.74%，还须单独核对小幅无裁切画幅修正。人物身份和额外道具未通过，所以不以比例成功宣称整段视觉通过。API受理不是画幅验收：确认真实输出展示比例、全画面构图、身份及动作后才扩批。横屏扩景不能靠裁切或大补边伪装成源机位；实际比例未生效时修应用，不重复原样提交。
 
 
-双图入口的两张图也可以描述同一目标身份的不同表情：在提示定义中明确两个Picture属于同一个Subject，保持源角色数量。原肖像给身份，已核表情导引只给同人表情资料，原视频仍给运动与机位。48项runner离线检查验证了两比例节点、137/139图片顺序和跨app不得继承pilot。当前双图人物效果仍待实际单窗验收，schema支持与离线通过不代表云端保真。
+双图入口的两张图也可以描述同一目标身份的不同表情：在提示定义中明确两个Picture属于同一个Subject，保持源角色数量。原肖像给身份，已核表情导引只给同人表情资料，原视频仍给运动与机位。runner离线检查验证了两比例节点、137/139图片顺序和跨app不得继承pilot。当前双图人物效果仍待实际单窗验收，schema支持与离线通过不代表云端保真。

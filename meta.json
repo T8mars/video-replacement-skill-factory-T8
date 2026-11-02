@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.2.23",
+  "version": "1.3.0",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -63,15 +63,19 @@
       "separate_original_speed_evidence": true,
       "final_ready_dynamic_gate": "unchanged; missing evidence stays pending"
     },
-    "scalar_cpu_scope": "Current WindowsPyAV and derived-audio FFmpeg subprocess; default otherplatform path unchanged."
+    "scalar_cpu_scope": "Current WindowsPyAV and derived-audio FFmpeg subprocess; default otherplatform path unchanged.",
+    "upload_reuse": "Fresh per paid request; same-byte de-duplication only within one request; known task recovery never reuploads",
+    "candidate_clock": "Strict nominal PTS by default; explicit current-evidence-bound measured source poses when actual model action clock differs",
+    "temporary_network_recovery": "Known-ID query/download retries persist with bounded backoff up to300seconds; distinct from execution failure count",
+    "source_template_boundary": "Known current-run candidate/proof/delivery artifact kinds rejected from reusable source evidence"
   },
   "validation": {
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
-    "offline_tests": "scripts/test_factory.py and scripts/test_runner.py",
-    "offline_test_count": 134,
-    "media_and_template_tests": 68,
-    "runner_tests": 51,
+    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py",
+    "offline_test_count": 180,
+    "media_and_template_tests": 69,
+    "runner_tests": 75,
     "independent_forward_test_completed": true,
     "independent_defect_rechecks_passed": 2,
     "post_update_template_checks": 3,
@@ -86,7 +90,7 @@
     "window_identity_override_isolation_verified": true,
     "final_report_contract_verified_offline": true,
     "known_task_failed_busy_keeps_original_id_verified_offline": true,
-    "current_release_factory_tests": 68,
+    "current_release_factory_tests": 69,
     "chinese_display_name_cli_zip_subprocess_verified": true,
     "cloud_visual_quality_scope": {
       "source_sha256": "75f4a28f357bdac5dc224141eefd857a95d5852cc4fca52ad28efac0046231b1",
@@ -96,7 +100,7 @@
       "rendered_with": "1.2.10",
       "scope": "One actually reviewed photographic two-person film; future cases and new identities still require actual review."
     },
-    "current_release_runner_tests": 51,
+    "current_release_runner_tests": 75,
     "legacy_portrait_canvas_controls": {
       "offline_tests": 11,
       "production_pilot_status": "actual-1088x1920-portrait-confirmed-identity-and-extra-prop-rejected",
@@ -116,8 +120,8 @@
     "current_portrait_pilot_review": {
       "scope": "Historical initial pilot identity verdict remains revoked; corrected complete film recorded separately below"
     },
-    "current_release_note": "Portable original-photo RH adapter, measured24fpsportrait->1280square8fps inverse-clock recovery, optional configured detail runtime; independent postprocessed fullfilm build contract validates complete raw RGB/PTS, original source/audio, current identity, real1x evidence and native seams. Newly installed templates carry Chinese meta/features.",
-    "identity_pipeline_tests": 15,
+    "current_release_note": "1.3 production reliability: current PyAV compatibility, fresh task assets, uncertain POST barrier, query/refill/download recovery, complete output/native-pose evidence, explicit measured mapping, independent canonical RGB/PTS proof and source-only template boundaries.",
+    "identity_pipeline_tests": 17,
     "corrected_portrait_quality_scope": {
       "frames": 721,
       "seconds": "721/24",
@@ -138,7 +142,28 @@
       "actual_frames": 2,
       "RGB_PTS_and_unchanged_body": "passed",
       "visual": "pending; smoke is not film approval"
-    }
+    },
+    "current_maintenance": {
+      "status": "all-local-validation-passed",
+      "cloud_calls": 0,
+      "historical_cloud_quality": "Existing scoped cases retained; this maintenance makes no new cloud visual approval claim",
+      "counts": {
+        "factory": 69,
+        "runner": 75,
+        "identity": 17,
+        "candidate": 19,
+        "publish": 10
+      },
+      "offline_total": 180,
+      "publication_total": 10,
+      "standalone_zip_and_deps_subprocess": "passed",
+      "negative_outgoing_git_history": "passed",
+      "source_only_evidence_and_stale_visual_rejection": "passed",
+      "app_specific_long_input_transport_receipts": "observed previously accepted/downloaded; pilot remains required",
+      "new_cloud_calls": 0
+    },
+    "candidate_review_tests": 19,
+    "publication_guard_tests": 10
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -185,7 +210,13 @@
     "Actual image-edited clean cloth/background can remove an opaque blank caption plate before original glyph/time restoration. Declared frame-local box/halo and outside RGB equality, actual panel bounds and cross-window caption material review retained.",
     "Actual source color enums include unspecified values. Full independent final decode, numeric native exit diagnosis and reuse of verified raw owners prevent unnecessary cloud reruns; short successful probes and process exit alone do not prove fullfilm.",
     "Original identity is an independent quality gate: compare literal user photo, source actor and current output; changed hairstyle/costume/action does not prove identity. Derived and previously approved generated references are rechecked against original authority; broad human identity rejection revokes corresponding identity conclusions, preserving source technical facts.",
-    "Original-photo identity correction with measured output clock/canvas, optional bounded detail, missing detector and foreground-mask risks; actual fullfilm acceptance is bound to the current file and does not alter rejected intermediate reviews."
+    "Original-photo identity correction with measured output clock/canvas, optional bounded detail, missing detector and foreground-mask risks; actual fullfilm acceptance is bound to the current file and does not alter rejected intermediate reviews.",
+    "Maintenance20rounds applied current production evidence without copying APT media, identities, fixed mappings, ROI coordinates or exposure coefficients",
+    "Fresh uploads per paid request; shared uncertain-submission barrier; query/refill/download ordering; persistent bounded backoff for already-paid network recovery",
+    "Complete actual-output evidence and labeled native ROI; explicit full-owner source pose/cut mapping with current artifact hashes, actual observations and visual mapping digest; remap resets visual pending",
+    "Independent canonical PNG RGB and PTS/duration proof with immutable plan/PNG/video checks, explicit quantization bound and separate visual pending",
+    "PyAV18 SideData object iteration compatibility; new standalone ZIP runtime, explicit deps import, source-only evidence boundary and full outgoing Git history protection",
+    "Application-specific discrete frame capabilities extended only from accepted/downloaded task evidence; dual long-shot input retains source owners and existing pilot/10second gates"
   ],
   "publishing": {
     "repository": "https://github.com/T8mars/video-replacement-skill-factory-T8",
@@ -201,5 +232,14 @@
     ],
     "checks": "Manifest whitelist + publish-policy + secret scan + all outgoing Git commits",
     "local_checkout_record": "CODEX_HOME/private/video-replacement-skill-factory/publishing.json"
+  },
+  "display_name": "视频换角与专属技能工厂",
+  "maintenance_research": {
+    "date": "2026-11-02",
+    "rounds": 20,
+    "completed": true,
+    "method": "Twenty evidence-backed maintenance topics reviewed with one sub-agent; original construction research kept separate.",
+    "report_sha256": "78da640de91934ecd86a0f87984ef7217dbc3ce2a1ba742b295232dd45bd9a61",
+    "report_publication": "Local research only; excluded from repository"
   }
 }

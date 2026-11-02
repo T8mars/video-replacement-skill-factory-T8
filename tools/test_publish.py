@@ -1,5 +1,6 @@
 """Offline publication guard regressions; fixtures never contain real secrets."""
-import hashlib, json, unittest
+import hashlib, json, unittest, subprocess, tempfile, sys
+from pathlib import Path
 import verify_publish as guard
 
 def fixture():
@@ -42,6 +43,46 @@ class PublishGuard(unittest.TestCase):
         self.assertTrue(guard.remote_ok(guard.EXPECTED_REPO+'.git'))
         files=fixture();files['SKILL.md']=b'name: unrelated-skill\n'
         self.assertTrue(guard.check_tree(files))
+
+    def test_runtime_whitelist_requires_complete_manifest(self):
+        files=fixture();policy=json.loads(files['publish-policy.json'])
+        policy['runtime_files'].append('README.md');files['README.md']=b'public tool guidance'
+        files['publish-policy.json']=json.dumps(policy).encode()
+        self.assertTrue(any('coverage' in error for error in guard.check_tree(files)))
+
+    def outgoing_fixture(self, forbidden_name, data):
+        with tempfile.TemporaryDirectory(prefix='factory-publish-history-') as directory:
+            root=Path(directory).resolve()
+            def git(*args):
+                result=subprocess.run(['git','-C',str(root),*args],capture_output=True,check=True)
+                return result.stdout.decode().strip()
+            git('init','-b','main');git('config','user.name','Offline fixture');git('config','user.email','fixture@example.invalid')
+            git('config','core.autocrlf','false');git('remote','add','origin',guard.EXPECTED_REPO+'.git')
+            for name,content in fixture().items():(root/name).write_bytes(content)
+            git('add','SKILL.md','meta.json','manifest.json','publish-policy.json');git('commit','-m','Safe base')
+            base=git('rev-parse','HEAD');path=root/forbidden_name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+            git('add','--',forbidden_name);git('commit','-m','Forbidden intermediate fixture')
+            path.unlink();git('add','-u','--',forbidden_name);git('commit','-m','Clean final fixture')
+            head=git('rev-parse','HEAD')
+            # The final revision by itself is clean; the outgoing history is not.
+            command=[sys.executable,'-B','-X','utf8',str(Path(guard.__file__).resolve())]
+            final=subprocess.run([*command,'--revision','HEAD'],cwd=root,capture_output=True,text=True)
+            self.assertEqual(final.returncode,0,final.stderr)
+            pending=f'refs/heads/main {head} refs/heads/main {base}\n'
+            result=subprocess.run([*command,'--pre-push','origin',guard.EXPECTED_REPO+'.git'],input=pending,
+                cwd=root,capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0)
+            return result.stderr
+
+    def test_outgoing_history_rejects_removed_roadmap(self):
+        error=self.outgoing_fixture('notes/RoAdMaP.Md',b'local planning fixture')
+        self.assertIn('forbidden publication path',error)
+
+    def test_outgoing_history_rejects_removed_credential_assignment(self):
+        # Construct a fake value, never an actual user credential.
+        value=b'OFFLINE_ONLY_'+b'Z'*32
+        error=self.outgoing_fixture('README.md',b'api_key = "'+value+b'"')
+        self.assertIn('possible credential',error);self.assertNotIn(value.decode(),error)
 
 if __name__=='__main__':
     unittest.main(verbosity=2)
