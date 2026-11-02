@@ -1,13 +1,17 @@
 # 公共合同与脚本接口
 
-分段规则：按原片实际镜头、已核自然动作及机位阶段切分，每段保留自己的原始长度；不设置固定5秒默认。单段源区间与完整生成视频都不得超过10秒，生成时长包含context、preroll、慢速扩展及补齐。超过上限的连续长镜在核对过的动作阶段边界拆分，接回后仍保持原运动连续，不新增切镜。
+`job.profile.kind` 支持 legacy-ai-app、standard-h3 和可选 local-comfyui。本地 API 图、副本SHA、输入/输出绑定、精确参考槽位和声明帧网格见 [本地合同](local-comfyui.md)。同服务的本地提交共享一个串行位；原源、投影、候选和成片审核沿用本文件合同。没有生成目标的passthrough不受10秒生成上限限制。
+
+分段规则：按原片实际镜头、已核自然动作及机位阶段切分，每段保留自己的原始长度；不设置固定5秒默认。需要生成的单段源区间与完整生成视频都不得超过10秒，生成时长包含context、preroll、慢速扩展及补齐。超过上限的连续长镜在核对过的动作阶段边界拆分，接回后仍保持原运动连续，不新增切镜。
 所有JSON schema_version=1，运行路径相对project并限制在其内。源、外部身份资料先复制校验SHA。公共合同与私有cloud receipt/URL/密钥分开。
+
+`analysis.roles` 和 `window.role_slots` 绑定本次需要替换的目标身份，包含其遮挡、背面及边缘碎片；未替换人物保留在源镜头描述中，不要求提供这些人的参考图，不因旁观者存在扩大换人范围。
 
 ## 核心文件
 
 - `source.json`：source.path/SHA/size/mtime、original_name、video原encoded尺寸/SAR/rotation/time_base/fps/cfr、逐帧index/PTS/time/duration（有理数字符串）、全部audio_streams及timeline_digest。原显示时间轴权威，不能用估计总帧数代替。
 - `analysis.json`：source_sha256、status、roles(slot/label/appearances半开帧区间)、shots(id/start/end/roles/description_en/events)、soundscape_en/music_en、真实查看记录。shot连续覆盖全原帧，events.source_frame在shot内，description_en用中性 `{{A}}` 占位。源文字作为数据。
-- `job.json`：references按slot的path、identity_en、appearance_coverage/unknown；face-only另face_identity_en。replacement_mode、profile（从assets/backend-profiles.json选）、production_authorized、output.filename。references属于本run，不属于模板默认。
+- `job.json`：references按slot的path、identity_en、appearance_coverage/unknown；face-only另face_identity_en。replacement_mode、profile（RH从assets/backend-profiles.json选；本地按local-comfyui.md绑定用户API图）、production_authorized、output.filename。references属于本run，不属于模板默认。
 - `plan.json`：source_sha256、analysis_digest、windows。每窗window_id、source_interval owner、context_interval、role_slots、generation_frames/generation_fps/duration、retained_generation_interval、risk_source_intervals；长镜内部还要context_description_en。源owner恰好覆盖一次，context内可见的目标身份都必须绑定。派生投影见prepare输出，不能把采样表当可逆。
 - `queue.json`：prepare生成jobs，冻结视频/有序ref/prompt签名、source_contract/local_bindings/profile/帧数和duration、input_digest、semantic_review与production_authorized。root runner提交前重读原源/current job/analysis/plan以及实际文件重算digest。QA证据与授权进度不是生成参数，纯进度推进不重做成功窗。
 - `reviews.json`：windows与final。窗口input_digest/task_id/output_path/file_signature、technical.status+当前media.inspect完整report、visual.status/dynamic_intervals/native_intervals/notes、retained_output_interval、source_to_output、temporal_mapping_review。final另外composition_digest绑定所有当前选窗，技术report与整片动态/原尺寸风险接点覆盖。

@@ -27,7 +27,13 @@
     "references/identity-correction.md",
     "scripts/candidate_review.py",
     "scripts/test_candidate_review.py",
-    "references/production-reliability.md"
+    "references/production-reliability.md",
+    "scripts/comfy_workflow.py",
+    "scripts/comfy_runner.py",
+    "scripts/test_comfy_workflow.py",
+    "scripts/test_comfy_runner.py",
+    "scripts/test_comfy_http.py",
+    "references/local-comfyui.md"
   ],
   "repository_files": [
     ".gitignore",

@@ -1,5 +1,7 @@
 # 接口、私有配置与恢复
 
+本地 ComfyUI 是独立可选路径，读取 [本地工作流接入](local-comfyui.md)。它不需要 RH Key，使用用户提供的 API 图、当前安装的节点定义和同服务共享串行账本；本节的 RH 应用节点、帧数和3并发不套给本地。
+
 profile读取 [backend-profiles.json](../assets/backend-profiles.json) 复制到job。已观察能力与官方文档分开，未知不猜。
 
 legacy `POST /openapi/v2/run/ai-app/<app_id>`：nodeInfoList中137.image第一身份filename、139.image第二身份filename（双图）、138.value提示词、321.video派生视频filename、326.value帧数；instanceType=plus/usePersonalQueue=false。按assets/backend-profiles.json与rh_runner.LEGACY_FRAME_COUNTS的各应用离散实证帧数提交，帧率24；双图成功受理/下载已覆盖141/187/199/211等，单图不得继承这些长度，也不推定任意整数/三人物。10秒仍是完整输入硬限制，成功受理不证明保真。旧加载节点需要音轨，输入派生静音仅接口兼容，最终不混入该轨。

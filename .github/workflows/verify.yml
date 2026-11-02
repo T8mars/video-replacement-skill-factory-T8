@@ -18,3 +18,6 @@ jobs:
       - run: python scripts/test_runner.py
       - run: python scripts/test_identity.py
       - run: python scripts/test_candidate_review.py --work /tmp/candidate-review-regressions
+      - run: python scripts/test_comfy_workflow.py
+      - run: python scripts/test_comfy_runner.py --work /tmp/comfy-runner-regressions
+      - run: python scripts/test_comfy_http.py

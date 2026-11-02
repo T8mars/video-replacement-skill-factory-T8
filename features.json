@@ -240,6 +240,26 @@
       "id": "complete-runtime-manifest-and-outgoing-history",
       "status": "implemented-offline-verified",
       "scope": "Runtime whitelist must be fully hash-covered; temporary Git negative checks reject removed forbidden intermediate commits; no other skill/media/private data publication."
+    },
+    {
+      "id": "optional-local-comfyui-workflow",
+      "status": "implemented-offline-verified",
+      "scope": "User API graph inspection, explicit runtime bindings and installed node schemas; preserves model/LoRA choices; unsupported UI/dynamic widgets explicit."
+    },
+    {
+      "id": "local-serial-durable-recovery",
+      "status": "implemented-offline-verified",
+      "scope": "Endpoint-wide SQLite single slot, external queue wait, UUID/client/graph reconcile, durable successful receipts, strict selected saver and selection-specific candidates; no automatic visual pass."
+    },
+    {
+      "id": "source-neutral-local-template",
+      "status": "implemented-offline-verified",
+      "scope": "Independent mixed-reference ZIP reuse; private workflow overrides removed from new packages and new runs only; original installed skill preserved."
+    },
+    {
+      "id": "long-target-free-passthrough",
+      "status": "implemented-offline-verified",
+      "scope": "Generation ten-second cap applies only to generated owners; long unchanged target-free shots keep source ownership without generation."
     }
   ]
 }

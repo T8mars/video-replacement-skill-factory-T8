@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -67,13 +67,22 @@
     "upload_reuse": "Fresh per paid request; same-byte de-duplication only within one request; known task recovery never reuploads",
     "candidate_clock": "Strict nominal PTS by default; explicit current-evidence-bound measured source poses when actual model action clock differs",
     "temporary_network_recovery": "Known-ID query/download retries persist with bounded backoff up to300seconds; distinct from execution failure count",
-    "source_template_boundary": "Known current-run candidate/proof/delivery artifact kinds rejected from reusable source evidence"
+    "source_template_boundary": "Known current-run candidate/proof/delivery artifact kinds rejected from reusable source evidence",
+    "local_comfyui": {
+      "workflow": "User-supplied API graph with explicit SHA and actual node/field bindings; no UI widget guessing",
+      "endpoint": "loopback HTTP only; same port aliases share one serial slot",
+      "ledger": "CODEX_HOME/private/video-replacement-skill-factory/comfy.sqlite",
+      "frame_capabilities": "Explicit workflow fps and discrete counts or grid; no universal 24fps/17-grid assumption",
+      "recovery": "attempt/client/graph-bound original prompt IDs and durable success receipts; no uncertain resubmission",
+      "template_boundary": "No private local workflow/overrides; new-run migration keeps original skills unchanged",
+      "gpu_visual_verification": false
+    }
   },
   "validation": {
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
-    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py",
-    "offline_test_count": 181,
+    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py",
+    "offline_test_count": 258,
     "media_and_template_tests": 70,
     "runner_tests": 75,
     "independent_forward_test_completed": true,
@@ -120,7 +129,7 @@
     "current_portrait_pilot_review": {
       "scope": "Historical initial pilot identity verdict remains revoked; corrected complete film recorded separately below"
     },
-    "current_release_note": "1.3 production reliability: current PyAV compatibility, fresh task assets, uncertain POST barrier, query/refill/download recovery, complete output/native-pose evidence, explicit measured mapping, independent canonical RGB/PTS proof and source-only template boundaries.",
+    "current_release_note": "1.4 optional local ComfyUI API workflow, serial durable recovery, source-neutral packaging and long passthrough repair.",
     "identity_pipeline_tests": 17,
     "corrected_portrait_quality_scope": {
       "frames": 721,
@@ -146,6 +155,37 @@
     "current_maintenance": {
       "status": "all-local-validation-passed",
       "cloud_calls": 0,
+      "real_comfy_gpu_calls": 0,
+      "counts": {
+        "factory": 70,
+        "runninghub": 75,
+        "identity": 17,
+        "candidate_review": 19,
+        "local_workflow": 29,
+        "local_runner": 37,
+        "local_http": 11,
+        "publication": 10
+      },
+      "functional_regressions": 258,
+      "all_regressions": 268,
+      "evidence_sha256": {
+        "factory": "cb472afd86725fbfe156ebdc1a0523aeee8f48e800993b42a0f7e40b97344f13",
+        "runninghub": "a59eb8aa4339e312108c81a2563d26821c6063d56a8a0c1f836bfcd541837d7b",
+        "identity": "d11138a5cfd369224aec55260c30e5772738ba4ea8c78073cfc8ed3b333a3a0a",
+        "candidate_review": "330185f5e0a23aa7734ee7a32bec7e31c82de1dd835ab5a53921e67183321114",
+        "local_workflow": "124a7f4d611ecb310ebf617f3c02fbb6bb54b7d6c95ae4d2050a1639ead861ab",
+        "local_runner": "df7fce19a59737d16edcc6661308e5e49b072a5028d4eec1400ba272061de715",
+        "local_http": "3392210da1c215e00e71dcac1ba6d9cd203dc1aa216dde37927c89a7b67d0aa6",
+        "publication": "e3a2c56d8178b1715d24660c2fd44b3ff6bdc49b1413f12a9445cf6868d5495e"
+      },
+      "independent_extracted_mixed_reference_zip_reuse": "passed",
+      "scope": "Synthetic decoded media, offline runner, simulated HTTP and independent extracted ZIP CLI only; actual H3 model and new identity fidelity require production pilot/QA"
+    },
+    "candidate_review_tests": 19,
+    "publication_guard_tests": 10,
+    "previous_maintenance": {
+      "status": "all-local-validation-passed",
+      "cloud_calls": 0,
       "historical_cloud_quality": "Existing scoped cases retained; this maintenance makes no new cloud visual approval claim",
       "counts": {
         "factory": 70,
@@ -164,8 +204,9 @@
       "pyav_api_compatibility": "Real H264 SEI/display-matrix data normalized from both legacy enum-key and modern object iteration; no metadata discarded.",
       "github_initial_compatibility_failure": "1.3.0 Linux old-PyAV enum-key iteration identified and fixed in1.3.1; current remote verification follows publication."
     },
-    "candidate_review_tests": 19,
-    "publication_guard_tests": 10
+    "local_comfyui_workflow_tests": 29,
+    "local_comfyui_runner_tests": 37,
+    "local_comfyui_http_tests": 11
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -244,5 +285,15 @@
     "method": "Twenty evidence-backed maintenance topics reviewed with one sub-agent; original construction research kept separate.",
     "report_sha256": "78da640de91934ecd86a0f87984ef7217dbc3ce2a1ba742b295232dd45bd9a61",
     "report_publication": "Local research only; excluded from repository"
+  },
+  "h3_comparison_research": {
+    "date": "2026-11-03",
+    "reference": "https://github.com/gosick233-cloud/h3-video-replace",
+    "reference_revision": "961847e484bc06df4f615db88d72b1e4b610ed13",
+    "rounds_requested": 20,
+    "completed": true,
+    "report_publication": "Local evidence-backed bilateral research; not included in source repository",
+    "rounds_completed": 20,
+    "report_sha256": "4279e3ac2a189a3e9e49ce5904c81d710a57cbca2883643eb74ecdf802cf2806"
   }
 }
