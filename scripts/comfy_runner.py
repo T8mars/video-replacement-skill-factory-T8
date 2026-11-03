@@ -43,9 +43,11 @@ def endpoint(url):
 
 def file_item(item, allowed_types=('output', 'temp')):
     name, folder = item.get('filename'), item.get('subfolder', '')
+    if isinstance(folder, str):
+        folder = folder.replace('\\', '/')
     if (not isinstance(name, str) or not name or '/' in name or '\\' in name or ':' in name or '\x00' in name
             or name in ('.', '..') or not isinstance(folder, str)
-            or '\\' in folder or ':' in folder or '\x00' in folder or PurePosixPath(folder).is_absolute()
+            or ':' in folder or '\x00' in folder or PurePosixPath(folder).is_absolute()
             or '..' in PurePosixPath(folder).parts or item.get('type', 'output') not in allowed_types):
         raise ValueError('Invalid ComfyUI file descriptor')
     return {'filename': name, 'subfolder': folder, 'type': item.get('type', 'output')}

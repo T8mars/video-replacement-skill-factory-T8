@@ -80,6 +80,8 @@ python scripts/comfy_runner.py resume --project <制作run>
 
 ComfyUI 校验 FLOAT 控件时可能把提交图里的 `24` 改成 `24.0`。恢复比较允许数值完全相等的整数／浮点数表示变化，仍严格核对 UUID、client_id、完整图结构和其他值；不放宽数值误差，不把字符串或布尔值当数字。该情况只恢复原任务，不重新提交。模型节点实际报错时仍保存原 ID 和失败回执，修因并建立有依据的新输入版本后再执行。
 
+Windows VideoHelperSuite 的相对 subfolder 可含反斜杠。下载前统一为 `/`，再执行上级目录、绝对路径、盘符、文件名及输出类型检查；不使用返回的 fullpath 读取本地文件。已成功任务发生这类下载兼容问题时，从持久回执恢复原结果，不重新生成。
+
 新专属技能携带通用本地适配器及本说明，**不携带本次私人工作流、本机路径、模型配置、服务记录或人物图**。新 run 的 profile 和制作授权仍清空，按本次环境选路；原源事实与时间轴可以复用。
 
 本次设计参考 [gosick233-cloud/h3-video-replace](https://github.com/gosick233-cloud/h3-video-replace/tree/961847e484bc06df4f615db88d72b1e4b610ed13)，采用独立实现，保留工厂完整验收与成片交付合同。接口依据 [ComfyUI 官方服务路由](https://docs.comfy.org/development/comfyui-server/comms_routes)。详细20轮研究记录留在本地维护目录，未发布私人研究及运行数据。

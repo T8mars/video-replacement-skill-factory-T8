@@ -471,6 +471,15 @@ class ContractTests(unittest.TestCase):
             with self.subTest(item=item), self.assertRaises(ValueError):
                 cr.file_item(item)
 
+    def test_windows_vhs_subfolder_is_normalized_before_safety_checks(self):
+        item = {'filename': 'clip.mp4', 'subfolder': 'factory\\attempt', 'type': 'output',
+                'fullpath': 'ignored-server-local-path', 'format': 'video/h264-mp4'}
+        self.assertEqual(cr.file_item(item),
+                         {'filename': 'clip.mp4', 'subfolder': 'factory/attempt', 'type': 'output'})
+        for folder in ('..\\outside', 'safe\\..\\outside', '\\absolute', '\\\\host\\share', 'C:\\outside'):
+            with self.subTest(folder=folder), self.assertRaises(ValueError):
+                cr.file_item({**item, 'subfolder': folder})
+
     def test_frame_grid_is_declared_not_assumed(self):
         p = {'limits': {'fps': ['24'], 'identity_slots': 1, 'frame_grid': {'step': 17, 'offset': 5, 'minimum': 22}}}
         self.assertEqual(factory.local_frame_count(p, 24, 24), 39)

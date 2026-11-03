@@ -163,6 +163,14 @@ class HttpClientTests(unittest.TestCase):
         self.assertEqual(len(self.server.seen), before)
         self.assertFalse((self.root / 'bad.mp4').exists())
 
+    def test_windows_subfolder_download_is_canonical_and_exact(self):
+        output = self.root / 'windows-download.mp4'
+        self.client.download({'filename': 'clip.mp4', 'subfolder': 'factory\\attempt',
+                              'type': 'output', 'fullpath': 'ignored'}, output)
+        self.assertEqual(output.read_bytes(), BINARY)
+        self.assertEqual(self.server.view_query['subfolder'], ['factory/attempt'])
+        self.assertNotIn('fullpath', self.server.view_query)
+
     def test_redirect_is_rejected_without_opening_target(self):
         # The reserved .invalid domain must never be contacted by this client.
         with self.assertRaisesRegex(ValueError, 'redirect'):

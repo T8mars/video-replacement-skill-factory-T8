@@ -265,6 +265,11 @@
       "id": "local-validated-numeric-history-recovery",
       "status": "real-service-reproduced-and-regression-verified",
       "scope": "ComfyUI in-place FLOAT coercion permits exact int/float value equivalence while UUID, client ID, full graph structure, boolean/string types and changed values remain strict. Recovery never reposts."
+    },
+    {
+      "id": "windows-vhs-relative-output-recovery",
+      "status": "actual-gpu-download-recovered-and-regression-verified",
+      "scope": "Normalize Windows relative subfolders before traversal/root/drive checks and use view HTTP download, never server fullpath. First real local output fully decoded; visual quality remains separately unapproved."
     }
   ]
 }
