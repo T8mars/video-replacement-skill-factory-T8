@@ -209,6 +209,19 @@ def preflight(project, entry):
     return current
 
 
+def same_graph_value(left, right):
+    """ComfyUI validates FLOAT inputs in place (24 becomes 24.0)."""
+    if type(left) in (int, float) and type(right) in (int, float):
+        return left == right
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(same_graph_value(left[k], right[k]) for k in left)
+    if isinstance(left, list):
+        return len(left) == len(right) and all(same_graph_value(a, b) for a, b in zip(left, right))
+    return left == right
+
+
 def match_attempt(record, row):
     """Official queue/history prompt tuple retains graph and extra_data."""
     if not isinstance(record, list) or len(record) < 4 or not row.get('graph'):
@@ -216,7 +229,7 @@ def match_attempt(record, row):
     extra = record[3]
     return (isinstance(extra, dict) and extra.get('factory_attempt') == row['id']
             and extra.get('client_id') == row['id']
-            and factory.digest(record[2]) == factory.digest(json.loads(row['graph'])))
+            and same_graph_value(record[2], json.loads(row['graph'])))
 
 
 class Runner:

@@ -236,6 +236,25 @@ class RunnerTests(unittest.TestCase):
         self.client.queue['queue_running'][0][2]['1']['inputs']['text'] = 'unrelated'
         self.assertEqual(self.tick()[0]['state'], 'UNKNOWN')
 
+    def test_float_input_validation_recovers_without_reposting(self):
+        self.client.timeout = True
+        self.tick()
+        graph = self.client.queue['queue_running'][0][2]
+        graph['1']['inputs']['frames'] = 8.0
+        self.assertEqual(self.tick()[0]['state'], 'QUEUED')
+        self.client.complete()
+        self.assertEqual(self.tick()[0]['state'], 'DOWNLOADED')
+        self.assertEqual(len(self.client.posts), 1)
+
+    def test_graph_numeric_comparison_preserves_values_and_boolean_types(self):
+        self.assertTrue(cr.same_graph_value({'fps': 24}, {'fps': 24.0}))
+        for changed in (23.999999, '24', True, None):
+            self.assertFalse(cr.same_graph_value({'fps': 24}, {'fps': changed}))
+        self.assertFalse(cr.same_graph_value({'enabled': 1}, {'enabled': True}))
+        self.assertFalse(cr.same_graph_value([1, 2], [1]))
+        self.assertFalse(cr.same_graph_value({'fps': 24}, {'fps': 24.0, 'extra': 0}))
+        self.assertFalse(cr.same_graph_value(9007199254740993, 9007199254740992.0))
+
     def test_partial_node_errors_persist_accepted_id(self):
         self.client.partial_errors = True
         row = self.tick()[0]
