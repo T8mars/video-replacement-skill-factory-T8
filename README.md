@@ -9,12 +9,34 @@
 > 实际账号权限、可用模型和审核要求以平台当前规则为准。注册入口不会自动切换脚本的接口地址。
 
 **技能标识：** `video-replacement-skill-factory`  
-**当前版本：** `1.4.2`
+**当前版本：** `1.5.0`
 **专属维护仓库：** [T8mars/video-replacement-skill-factory-T8](https://github.com/T8mars/video-replacement-skill-factory-T8)
 
 给 Codex 一个原视频和人物参考图，工厂会分析原片、替换人物、检查并修复画面、组装保留原音轨的成片，再为该原视频创建并安装一个独立、可复用的专属 SKILL。下次使用同一原片，只需更换人物参考图。
 
 按原片实际镜头、已核自然动作及机位阶段切分，每段保留自己的原始长度；不设置固定5秒默认。需要生成的单段源区间与完整生成视频都不得超过10秒，生成时长包含context、preroll、慢速扩展及补齐。超过上限的连续长镜在核对过的动作阶段边界拆分，接回后仍保持原运动连续，不新增切镜。
+
+## 1.5.0：把制作经验变成可复用的省时措施
+
+仍然是“发原视频与人物图，交付成片和中文专属技能”。这次与子Agent实际往返20轮，迁入多镜头人物替换制作中的通用经验，不固定某个人物、镜头编号、帧率或素材。
+
+- **新人物重新试片**：试片审批绑定当前角色映射、参考图、外观策略、后端和风险；旧接口成功记录不能代替新人物验收。
+- **只重做受影响部分**：无关人物/窗口变化不撤销当前窗审批；完整原片与整体owner计划仍严格核对。缓存技术报告和已完成证据，损坏或改映射后重新检查。
+- **长片合片更稳**：按最终选帧顺序读取，避免保留整片解码画面；同路径编码测试后开始完整编码，封装失败可复用已完整验证的silent视频。保留可变帧率、旋转、SAR、颜色和全部原音轨检查。
+- **费用能核对**：只读本机账本、按taskId去重，区分已知小计与缺失/冲突/父子重叠；不把嵌套费用重复相加，不把未知记成0。三并发缩短等待，不直接减少任务扣币。
+- **旧专属包可明确升级**：`--upgrade-runtime`创建新revision，保留旧包、原中文名与用户修改；后续新技能带齐新工具，当前人物/任务/账单/审批不进入模板。
+
+本版实测：294项离线运行/媒体测试＋11项发布检查通过，另完成新专属ZIP解压后的独立运行验证；新增维护未产生RH扣费。
+
+日常让Agent继续使用本技能即可。维护或复盘时可使用：
+
+```text
+python scripts/rh_runner.py pilot-promote --project <run> --window-id <已实际验收试片ID>
+python scripts/cost_audit.py --project <run> --ledger <私有tasks.sqlite> --scenario-reduction 0.25
+python scripts/factory.py build-skill --project <run> --display-name "中文内容名" --upgrade-runtime
+```
+
+费用情景仅是假设“额外尝试减少多少”，并非新版已经实测的省币率。维护使用离线故障与合成媒体，未提交新云端付费任务或本地GPU生成。
 
 ## 1.4.2：Windows 视频结果恢复
 
@@ -57,6 +79,8 @@
 本仓库发布的是**工厂本身**。每次生成的 `r2va-video-*`、原视频、人物图和成片保存在用户的本地制作项目中。
 
 ## 安装与运行环境
+
+可从 [Releases](https://github.com/T8mars/video-replacement-skill-factory-T8/releases/latest) 下载 `video-replacement-skill-factory-v1.5.0.zip`，解压后将 `video-replacement-skill-factory` 文件夹交给 Agent 安装。完整包仅含本工厂代码、说明和验证工具，不含私人人物图、视频或凭据。
 
 需要 Codex 的本地技能能力、Python 3.10+、PyAV、Pillow，以及 PATH 中的 `ffmpeg` / `ffprobe`。离线音频回归还需要 NumPy，已列入requirements.txt。运行时路径可按自己的机器设置，媒体命令支持 `--deps`。Windows 遇到已证实的解码差异时可使用 `--scalar-cpu`，详见技能文档。
 
@@ -199,3 +223,15 @@ git config core.hooksPath .githooks
 | Hugging Face | [t8star](https://huggingface.co/t8star) |
 
 工厂当前的生成后端按本次 `job.profile` 和接口文档配置；资源列表中的 API 注册链接是作者提供的独立资源入口。
+
+## English guide: production reuse in 1.5
+
+Give the agent a source video, character references and the requested role mapping. It delivers the replacement film and a reusable source-specific skill with a Chinese display name. New identities always need current pilot and visual review.
+
+Version 1.5 binds RH pilot approval to the current source, identities, appearance policy, backend and source risks. Historical profile success does not approve a new person. Unchanged window approvals and complete byte-bound evidence can be reused without weakening whole-source and ownership validation.
+
+Final assembly decodes selected frames sequentially instead of retaining the whole film in memory. It preserves measured source PTS, VFR, display geometry, color and original audio tracks. A representative encoding check precedes the final encode. Only a verified complete silent video can be reused for a mux retry; partial encodes are never treated as resumable or visually approved.
+
+`scripts/cost_audit.py` reads saved RH receipts without network calls or credentials. It deduplicates task IDs, keeps missing/conflicting/parent-child charges unresolved, and never adds nested usage twice. Scenario reductions are assumptions, not measured savings. Three concurrent tasks reduce waiting time, not necessarily coin charges.
+
+Use `factory.py build-skill --upgrade-runtime` when an existing source-specific skill should inherit the new runtime. It creates a new revision, preserves the previous package and Chinese title, and does not transfer approval to future references. Source media, private workflows, credentials, billing and generated dedicated skills are excluded from this factory repository.

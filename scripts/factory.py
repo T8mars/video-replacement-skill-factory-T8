@@ -126,12 +126,24 @@ def compute_input_digest(project, entry):
     if prepared_contract and prepared_contract.get('window',{}).get('profile_override'):
         prepared_contract={**prepared_contract,'window':{**prepared_contract['window'],
                             'profile_override':generation_profile(prepared_contract['window']['profile_override'])}}
-    current_contract = {'source': source['source'], 'timeline_digest': source['timeline_digest'],
-                        'analysis': analysis, 'plan': normalized_plan(plan),
-                        'job': {'references': job['references'],
-                                'replacement_mode': job.get('replacement_mode'),
-                                'profile': generation_profile(job['profile'])}}
+    # Global owner validation remains mandatory; only request-invalidating facts
+    # are scoped, so an unrelated C image/window does not revoke an A/B review.
+    validate_plan(source, analysis, plan)
     window = next(w for w in plan['windows'] if w['window_id'] == entry['window_id'])
+    c,d = window['context_interval']
+    slots = set(window['role_slots'])
+    scoped_analysis = {'status':analysis.get('status'),
+        'roles':[r for r in analysis['roles'] if r['slot'] in slots],
+        'shots':[shot for shot in analysis['shots'] if shot['start']<d and shot['end']>c]}
+    if prepared_contract:
+        prepared_contract={k:v for k,v in prepared_contract.items() if k!='analysis_digest'}
+    current_contract = {'source': source['source'], 'timeline_digest': source['timeline_digest'],
+                        'analysis': scoped_analysis, 'window':generation_window(window),
+                        'identity_sources':{slot:file_signature(project,job['references'][slot]['path']) for slot in sorted(slots)},
+                        'job': {'references': {slot:job['references'][slot] for slot in sorted(slots)},
+                                'replacement_mode': job.get('replacement_mode'),
+                                'appearance_policy':job.get('appearance_policy',{}),
+                                'profile': generation_profile(window_profile(job,window))}}
     if entry['profile'].get('kind') == 'local-comfyui':
         import comfy_workflow
         comfy_workflow.validate_profile(project, entry['profile'])
@@ -532,6 +544,8 @@ def prepare(project, deps=None, scalar_cpu=False, approve_semantics=False,approv
         write(project / 'plan.json', plan)
     validate_plan(source, analysis, plan)
     entries = []
+    previous_queue=read(project/'queue.json') if (project/'queue.json').is_file() else {'jobs':[]}
+    previous_entries={e['window_id']:e for e in previous_queue['jobs']}
     pilot_routes=set()
     for window in plan['windows']:
         profile=window_profile(job,window)
@@ -594,14 +608,15 @@ def prepare(project, deps=None, scalar_cpu=False, approve_semantics=False,approv
         prompt_file.parent.mkdir(parents=True, exist_ok=True)
         if not prompt_file.exists() or prompt_file.read_text(encoding='utf-8') != prompt:
             prompt_file.write_text(prompt, encoding='utf-8', newline='\n')
-        route=digest({k:v for k,v in profile.items() if k not in ('quality_evidence','evidence')})
-        is_pilot=route not in pilot_routes and profile.get('quality_evidence')!='case-verified'
+        import pilot_scope
+        route=pilot_scope.scope(project,window,profile)
+        is_pilot=route not in pilot_routes
         pilot_routes.add(route)
         entry = {'window_id': wid, 'video_path': input_path, 'reference_paths': refs,
                  'prompt_path': prompt_path, 'profile': profile,
                  'generation_frames': window['generation_frames'], 'duration': window['duration'],
                  'production_authorized': bool(job.get('production_authorized', False)),
-                 'pilot':is_pilot,
+                 'pilot':is_pilot, 'pilot_scope':route,
                  'source_contract': {'timeline_digest': source['timeline_digest'],
                                      'analysis_digest': digest(analysis), 'window': window,
                                      'replacement_mode': job.get('replacement_mode')},
@@ -615,6 +630,13 @@ def prepare(project, deps=None, scalar_cpu=False, approve_semantics=False,approv
         entry['source_projection_review']={'status':'passed' if approve_projection or not window['source_projection']['requires_temporal_review'] else 'pending',
                                           'input_digest':entry['input_digest'],
                                           'loss_disclosed':window['source_projection']['requires_temporal_review']}
+        previous=previous_entries.get(wid,{})
+        if previous.get('input_digest')==entry['input_digest']:
+            if not approve_semantics and previous.get('semantic_review',{}).get('input_digest')==entry['input_digest']:
+                entry['semantic_review']=copy.deepcopy(previous['semantic_review'])
+            if not approve_projection and previous.get('source_projection_review',{}).get('input_digest')==entry['input_digest']:
+                entry['source_projection_review']=copy.deepcopy(previous['source_projection_review'])
+        if pilot_scope.check(project,entry):entry['pilot']=False
         entries.append(entry)
     queue = {'schema_version': 1, 'jobs': entries}
     write(project / 'queue.json', queue)
@@ -698,10 +720,12 @@ def validate_final_technical_report(source, record, actual_signature):
         raise ValueError('Final technical report is incomplete or invalid') from error
 
 
-def review_guard(project, final=False):
+def review_guard(project, final=False, window_ids=None):
     project = Path(project)
     source, analysis = validate_analysis(project)
     reviews = read(project/'reviews.json') if (project/'reviews.json').exists() else {'windows':{}}
+    if final and window_ids is not None:
+        raise ValueError('Final review cannot select only some windows')
     if final:
         current_windows = review_guard(project, False)
         record = reviews['final']
@@ -732,8 +756,12 @@ def review_guard(project, final=False):
     validate_plan(source, analysis, plan)
     windows = {w['window_id']: w for w in plan['windows']}
     result = []
+    requested=set(window_ids) if window_ids is not None else None
+    if requested is not None and (not requested or not requested<=set(windows)):
+        raise ValueError('Unknown scoped review window')
     for entry in queue['jobs']:
         wid = entry['window_id']
+        if requested is not None and wid not in requested:continue
         if compute_input_digest(project, entry) != entry['input_digest']:
             raise ValueError('Input changed after queue approval')
         if entry.get('passthrough'):
@@ -831,7 +859,9 @@ def inspect_candidate(project,window_id,task_id,candidate,deps=None,scalar_cpu=F
     if not window or not entry or compute_input_digest(project,entry)!=entry['input_digest']:
         raise ValueError('Candidate does not have a current prepared window')
     path=resolve(project,candidate)
-    report=media.inspect(path,deps,scalar_cpu)
+    report=media.inspect_cached(path,project/'candidate-cache',deps,scalar_cpu)
+    if Fraction(report['video']['end_time'])-Fraction(report['video']['start_time'])>10:
+        raise ValueError('Actual complete generated output exceeds the 10-second production cap')
     source_origin=Fraction(source['video']['frames'][window['context_interval'][0]]['time'])
     candidate_origin=Fraction(report['video']['frames'][0]['time'])
     output_times=[Fraction(r['time'])-candidate_origin for r in report['video']['frames']]
@@ -1022,7 +1052,7 @@ def neutral_local_profiles(plan):
     return plan
 
 
-def build_skill(project, skills_root, status='draft', display_name=None, delivery_review=None):
+def build_skill(project, skills_root, status='draft', display_name=None, delivery_review=None, upgrade_runtime=False):
     project, root = Path(project), Path(skills_root)
     source, analysis = validate_analysis(project)
     # Source evidence may include neutral manual crops/constraints, so do not
@@ -1035,7 +1065,8 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             except (ValueError,UnicodeError):
                 continue
             if isinstance(payload,dict) and payload.get('kind') in (
-                'complete-output-evidence','independent-canonical-rgb-pts','reviewed-postprocessed-film'):
+                'complete-output-evidence','independent-canonical-rgb-pts','reviewed-postprocessed-film',
+                'media-technical-cache','assembly-silent-proof','encoding-smoke','rh-cost-audit','pilot-scope-approvals'):
                 raise ValueError('Current-run candidate/delivery evidence cannot enter a source-only skill; preserve it outside source evidence')
     if status == 'ready':
         if delivery_review:
@@ -1058,6 +1089,14 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
         neutral_plan = neutral_local_profiles(neutral_plan)
         neutral_plan['analysis_digest'] = neutral_analysis_digest
         validate_plan(source, neutral_analysis, neutral_plan)
+    runtime_members={'scripts/'+p.name:media.signature(p)['sha256'] for p in Path(__file__).parent.glob('*.py') if not p.name.startswith('test_')}
+    shared_references=Path(__file__).parent.parent/'references'
+    if shared_references.is_dir():
+        runtime_members.update({'references/'+p.relative_to(shared_references).as_posix():media.signature(p)['sha256']
+                                for p in shared_references.rglob('*') if p.is_file()})
+    profiles=Path(__file__).parent.parent/'assets/backend-profiles.json'
+    if profiles.is_file():runtime_members['assets/backend-profiles.json']=media.signature(profiles)['sha256']
+    runtime_digest=digest(runtime_members)
     full_sha = source['source']['sha256']
     title = chinese_skill_title(source['original_name'], full_sha, display_name)
     recover_install(root)
@@ -1072,7 +1111,8 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
                 any(w.get('profile_override', {}).get('kind') == 'local-comfyui'
                     for w in read(previous_plan_path).get('windows', [])))
             upgrade = ((status == 'ready' and existing['status'] != 'ready') or
-                       previous_manifest['analysis_digest'] != neutral_analysis_digest or needs_local_neutralization)
+                       previous_manifest['analysis_digest'] != neutral_analysis_digest or needs_local_neutralization or
+                       (upgrade_runtime and previous_manifest.get('runtime_digest')!=runtime_digest))
             if not upgrade:
                 archive_path=project/(existing['name']+'.zip')
                 if not archive_path.exists():
@@ -1141,6 +1181,8 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             '按references/workflow.md完成每候选审批及试窗门槛；实际native风险帧、原速完整保留区间和接点通过后才选用。全部通过后停止新增。\n\n'
             '媒体检查优先后台完成；用户要求后台时不操作桌面播放器或鼠标键盘。完整连续帧审核与实际原速播放分别记录，'
             '后台源帧/PTS和身份观察可用于输入审批，不能虚构动态通过或放宽最终ready门槛。\n\n'
+            '本轮身份/外观/风险路线的试片审批必须重新绑定；实际验收后运行python scripts/rh_runner.py pilot-promote记录试片放批。'
+            '费用只读核对用scripts/cost_audit.py，去重账单与未核对费用分开；合片仅复用有完整证明的silent，不续写partial。\n\n'
             'Create a new run outside this skill folder. Run scripts/factory.py instantiate --skill <absolute-skill-folder> --project <run-directory>. '
             'Then provide job.json references/profile, '
             'run prepare, personally approve prompt semantics, use the included rh_runner.py (RunningHub) or comfy_runner.py (optional local ComfyUI) for the authorized production run, '
@@ -1172,10 +1214,13 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             'account_concurrency_target':3,'account_concurrency_cap':3,
             'complete_output_evidence_runtime':(scripts/'candidate_review.py').exists(),
             'optional_local_comfyui_runtime':(scripts/'comfy_runner.py').exists(),
+            'current_identity_pilot_scope':(scripts/'pilot_scope.py').exists(),
+            'readonly_cost_audit_runtime':(scripts/'cost_audit.py').exists(),
+            'bounded_assembly_and_silent_recovery':True,
             'explicit_measured_source_pose_mapping':True,
             'canonical_RGB_PTS_verification':(scripts/'candidate_review.py').exists()})
         manifest = {'schema_version': 1, 'name': name, 'status': status, 'source_sha256': full_sha,
-                    'display_name':title,'analysis_digest': neutral_analysis_digest, 'files': {}}
+                    'display_name':title,'analysis_digest': neutral_analysis_digest, 'runtime_digest':runtime_digest, 'files': {}}
         for path in stage.rglob('*'):
             if path.is_file():
                 manifest['files'][path.relative_to(stage).as_posix()] = media.signature(path)['sha256']
@@ -1247,6 +1292,7 @@ def main():
     parser.add_argument('--approve-semantics', action='store_true', help='Only after Codex actually reviews the compiled prompts')
     parser.add_argument('--approve-projection',action='store_true',help='Only after inspecting derived temporal sampling/loss')
     parser.add_argument('--final', action='store_true')
+    parser.add_argument('--upgrade-runtime',action='store_true',help='Create a new source-skill revision if the reusable runtime changed; preserve old packages')
     parser.add_argument('--output', default='replacement.mp4')
     parser.add_argument('--skills-root', default=os.environ.get('CODEX_HOME',str(Path.home()/'.codex'))+'/skills')
     parser.add_argument('--status', choices=['draft','ready'], default='draft')
@@ -1267,7 +1313,7 @@ def main():
     elif args.command == 'assemble':
         result = assemble(args.project,args.output,args.deps,args.scalar_cpu)
     elif args.command == 'build-skill':
-        result = build_skill(args.project,args.skills_root,args.status,args.display_name,args.delivery_review)
+        result = build_skill(args.project,args.skills_root,args.status,args.display_name,args.delivery_review,args.upgrade_runtime)
     elif args.command == 'recover-install':
         result = recover_install(args.skills_root)
     elif args.command == 'inspect-candidate':

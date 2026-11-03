@@ -28,11 +28,11 @@ def forbidden_path(name):
         return True
     if any(p == 'roadmap.md' or p.startswith(('api_key', 'api-key', 'apikey', '.env')) for p in lower):
         return True
-    if any(p.startswith('r2va-video-') or p in ('private','_private','runs','productions','candidates','outputs','refs','guides','__pycache__') for p in lower):
+    if any(p.startswith('r2va-video-') or p in ('.git','private','_private','runs','productions','candidates','outputs','refs','guides','__pycache__') for p in lower):
         return True
     if parts[-1].lower() == 'skill.md' and name != 'SKILL.md':
         return True
-    return PurePosixPath(name).suffix.lower() in ('.mp4','.mov','.nut','.png','.jpg','.jpeg','.wav','.mp3','.zip','.sqlite','.db','.pem','.key','.pyc')
+    return PurePosixPath(name).suffix.lower() in ('.mp4','.mov','.nut','.png','.jpg','.jpeg','.wav','.mp3','.zip','.sqlite','.db','.sqlite-wal','.sqlite-shm','.db-wal','.db-shm','.pem','.key','.pfx','.pyc','.exe','.dll')
 
 def check_payload(name, data, known_keys=()):
     errors = []

@@ -85,3 +85,29 @@ python scripts/candidate_review.py verify-rgb --plan <规范计划.json> --video
 暗场先在可看清的曝光下独立确认原图身份，再处理暗场氛围，不能把错误脸藏黑。单帧锚点正确、服装正确或灰剪影输入都不证明真实动作已换人；多出第三人、动起来回原人、末段没完成动作仍失败。目标姿态引导要逐格核人数、四边、背景尺度、道具与首尾手势，网格分界会引入几何跳幅，不能当万能模板。
 
 连续同类质量失败先更新具体坏帧与假设，下一组三法比较实质不同的原图/精确裁图、合法分辨率、整镜头或合规动作输入策略，不反复只改禁词。曝光系数、遮罩阈值、姿态索引只用于该次实测。仍保留独立原图身份、动态、native和整片接点审核，不自动宣布未来质量保证。
+
+## 当前试片范围与局部失效（1.5）
+
+`pilot_scope`按当前源SHA、实际role_slots对应原图及身份描述、replacement_mode、appearance_policy、实际profile/本地工作流和重叠源shot/event风险建立。不含窗口ID或某次输出帧数。源risk_class/risk_classes不能被window ordinary抹除；新身份、对调、配件策略或新风险重新试片。原图为身份权威，导引和裁图不替代原图。
+
+实际通过单窗全部既有审核后，用 `rh_runner.py pilot-promote --project <run> --window-id <ID>` 记录pilot-approvals.json；后续prepare据当前scope放批，检查批准来源本身的输入、候选、review和mapping仍有效。该命令无网络、不读取Key、不自动填视觉通过；只是把已完成的审核记为该scope试片依据。
+
+修改不相关窗口或身份时，当前窗输入digest只核其owner/context覆盖的源shots/events/角色、当前相关参考、profile与guide。全源SHA、analysis已核状态、全plan唯一owner仍全局验证。prepare对完全未变digest保留semantic/source_projection_review；新输入先pending，不沿用旧visual。已有taskId恢复优先，不以重新prepare改写旧ID。
+
+## 风险帧先验证与编码恢复（1.5）
+
+先确认源中谁是目标、谁是伴舞/前景，画缘手袖后脑都计身份；再保留真实动态和完整人物。静态guide不代替背转/交叉手等动作。局部蒙版、动态裁图、整词去字先看风险帧，再扩整段昂贵处理；检查前景遮挡、头脚、旧演员碎片、LED接缝及蒙版内颜色。方法不是永久黑名单，参数和候选逐次绑定。改变镜头或放宽发型需当前具体输出的接受，不能沿用历史豁免。
+
+候选完整输出仍不得超过10秒。候选技术报告和完成证据分别绑定实际字节、checker/解码库、mapping、native/ROI和全部artifact清单。缓存少图/改图/改配置即拒复用；导出全帧或读取缓存不等于原速/身份通过。
+
+合片以连续候选组流读，路径切换时从文件头顺序解码，重复index复用当前帧，不用seek猜动作相位；视频按原始PTS/duration/SAR/color编码一次。smoke包含首、路径切换及尾部等代表帧，经过同一选择/显示/编码链路；它不保证整片绝不崩。完整silent的证明绑定所有实际选帧、源、候选、编码配置和库，完整解码才写passed。封装失败后可沿同一输出名复用有效silent；截断/改字节/改selection或工具即拒绝，用新版本保存失败证据。partial/progress绝不当自动续写点。
+
+## 只读费用复盘（1.5）
+
+```text
+python scripts/cost_audit.py --project <run> --ledger <私有tasks.sqlite> --account default --out <新的本地报告.json>
+```
+
+账本以只读打开，只统计指定project/account；按真实taskId去重加顶层usage.consumeCoins，不重复加taskUsageList。失败但确有扣费也计，缺回执/冲突/父子聚合重叠列unknown，完整total为null而非假0。consumeMoney与thirdPartyConsumeMoney单列，不换算人民币。默认报告不含Key、请求、原taskId或签名URL，留本机，不进源assets/evidence。
+
+可加 `--scenario-reduction 0.25 --scenario-reduction 0.5` 做合成预算情景。仅在owner组映射完整且不重叠时给首成功基线；成功返回不等于合格，额外费用包含必要试片/修复。不同细化区间、未明确的跨run来源或缺账单不硬算浪费率/省币承诺。并发、缓存和本地编码恢复主要节省等待与CPU时间，未自动折算RH币节省。

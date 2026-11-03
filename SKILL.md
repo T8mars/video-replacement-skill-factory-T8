@@ -21,6 +21,16 @@ description: "视频换角与专属技能工厂：收到新原视频和人物参
 
 默认沿用 RunningHub。用户明确使用已有本地 ComfyUI/H3 环境时读 [本地工作流接入](references/local-comfyui.md)：检查本次提供的 API 工作流、实际输入/输出绑定和帧网格；不搜索其他工作流、不安装模型、不冻结私人配置。未提供必要资料才集中澄清，已有制作授权持续有效。当前适配器支持 API 图；UI 图要求同一工作流的 API 导出，不猜控件顺序。不支持的 API 动态节点需明确适配后再用，重复导出不能代替适配。本地采用共享账本串行执行，RH 的3并发目标不套给本地。
 
+## 1.5：复用与费用控制
+
+先复用原SHA及已核源角色/镜头/遮挡事实，运行偏好、候选映射和用户镜头接受留本轮，不冻结进源模板。未变窗口保留语义/投影审批，修改某人物或窗口仅撤销相关审批；全源与唯一owner的整体校验仍执行。已受理任务先恢复，不能因升级改写原ID输入。
+
+新RH提交按当前身份映射、外观策略、实际后端和源风险建立试片范围；旧profile的case-verified不代表新人物通过。实际完成该试片当前原图身份、完整输出时钟、动作和原速审查后运行 `rh_runner.py pilot-promote --project <run> --window-id <ID>`，再prepare放批。审批状态不改变生成digest。不要要求用户手填这些内部记录。
+
+技术检查与已完成的全帧证据按字节/工具/映射/ROI分层缓存，缓存不能代替视觉通过。合片按owner顺序有界解码；先测同编码路径代表帧，完整silent验证后可在封装失败时只重封装，partial不能当续编码点。细节与费用只读命令见[可靠修复](references/production-reliability.md)。
+
+费用依据保存回执去重核算，成功接口不等于合格画面，额外试片也不全部是浪费。三并发主要省等待，不宣称自动省币或固定节省率。同源旧专属包需继承新版运行器时，`build-skill --upgrade-runtime`另建revision保留旧包和中文名；普通复用不覆盖用户修改，新身份审批仍清空。
+
 ## 自动执行与验收
 
 1. 先核对制作输出盘的可用空间，空间不足时把新run放到有空间的目录，保留已有资产与任务记录。`ingest` 完整实际解码，记录原SHA、逐帧PTS/时长、展示比例/旋转、全部音轨及原尺寸证据。自动切点只给候选，Codex看全片和切点后批准源角色、镜头和事件。
@@ -44,7 +54,7 @@ description: "视频换角与专属技能工厂：收到新原视频和人物参
 
 给本次成片绝对路径、专属技能名称/安装路径、可安装ZIP，以及实际复核与未解决事项。按原全SHA去重，不覆盖用户修改；run保留候选/任务/失败帧/假设，专属包只冻结源事实及有适用条件的修正规则。
 
-离线验证：test_factory.py、test_runner.py、test_identity.py、test_candidate_review.py，以及本地后端的test_comfy_workflow.py、test_comfy_runner.py、test_comfy_http.py，媒体依赖参数见各自 `--help`。结构校验、离线模拟和真实模型效果分别报告。本次候选/原图/导引证据不放源evidence或assets，避免随专属技能冻结；已知运行证据类型会在build时拒绝。新专属包继承中文上下文及新工具，排除本次本地工作流和窗口私有profile；旧包实例化时只在新run清理本地旧覆盖，原技能保持原样。
+离线验证：test_factory.py、test_runner.py、test_identity.py、test_candidate_review.py、test_production_ops.py、test_reliability_upgrade.py，以及本地后端的test_comfy_workflow.py、test_comfy_runner.py、test_comfy_http.py，媒体依赖参数见各自 `--help`。结构校验、离线模拟和真实模型效果分别报告。本次候选/原图/导引证据不放源evidence或assets，避免随专属技能冻结；已知运行证据类型会在build时拒绝。新专属包继承中文上下文及新工具，排除本次本地工作流和窗口私有profile；旧包实例化时只在新run清理本地旧覆盖，原技能保持原样。
 
 ## 工厂维护与发布
 

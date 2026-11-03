@@ -58,6 +58,10 @@ class Fake:
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
+        # Scope promotion has separate real-project regressions. These transport
+        # fixtures stub factory.compute_input_digest and do not contain a source.
+        self.pilot_fixture=patch('pilot_scope.approval',return_value=False)
+        self.pilot_fixture.start()
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.project = self.root / 'project'
@@ -73,6 +77,7 @@ class RunnerTests(unittest.TestCase):
                       'profile': {'kind': 'legacy-ai-app', 'app_id': '2107844752011010050', 'quality_evidence': 'case-verified'}}
         self.validate = lambda p, e: e['input_digest']
     def tearDown(self):
+        self.pilot_fixture.stop()
         self.ledger.close()
         self.tmp.cleanup()
     def submit(self, fake):
@@ -612,6 +617,7 @@ class RunnerTests(unittest.TestCase):
     def test_quality_failures_have_no_three_attempt_limit(self):
         fake = Fake()
         for n in range(5):
+            self.entry['window_id']='repair-revision-'+str(n)
             self.entry['input_digest'] = 'revised-input-' + str(n)
             aid = self.submit(fake)
             self.assertIsNotNone(aid)
@@ -631,7 +637,7 @@ class RunnerTests(unittest.TestCase):
         fake = Fake()
         self.submit(fake)
         self.entry['input_digest'] = 'changed-ref'
-        self.assertIsNone(self.submit(fake))
+        with self.assertRaisesRegex(ValueError,'immutable'):self.submit(fake)
         self.assertEqual(fake.submits, 1)
 
 

@@ -258,6 +258,27 @@ def inspect(path, deps=None, scalar_cpu=False, evidence_dir=None):
             'technical_status': 'passed', 'visual_status': 'pending'}
 
 
+def inspect_cached(path, cache_dir, deps=None, scalar_cpu=False):
+    """Reusable complete technical report; it never approves a visual result."""
+    from assembly_session import backend_identity,digest,write
+    contract={'version':1,'file_signature':signature(path),'checker_sha256':signature(__file__)['sha256'],
+              'backend':backend_identity(deps,scalar_cpu)}
+    cache=Path(cache_dir)/(digest(contract)+'.json')
+    if cache.is_file():
+        try:
+            saved=json.loads(cache.read_text(encoding='utf-8'))
+            report=saved['report']
+            if (saved.get('contract')==contract and saved.get('report_digest')==digest(report)
+                and report.get('technical_status')=='passed' and report.get('file_signature')==contract['file_signature']):
+                return report
+        except (ValueError,KeyError,TypeError):pass
+    report=inspect(path,deps,scalar_cpu)
+    if signature(path)!=contract['file_signature']:raise ValueError('Video changed during media verification')
+    cache.parent.mkdir(parents=True,exist_ok=True)
+    write(cache,{'kind':'media-technical-cache','contract':contract,'report':report,'report_digest':digest(report)})
+    return report
+
+
 def extract_evidence(path, indices, directory, deps=None, scalar_cpu=False):
     av = runtime(deps, scalar_cpu)
     indices = set(indices)
@@ -409,139 +430,5 @@ def audio_packets(path, deps=None, scalar_cpu=False):
 
 
 def assemble(source_path, source_video, assignments, output_path, deps=None, scalar_cpu=False):
-    """Encode selected candidate frames once at original PTS, remux every original audio track."""
-    av = runtime(deps, scalar_cpu)
-    output_path = Path(output_path)
-    if output_path.exists():
-        raise FileExistsError('Existing final is never overwritten')
-    canvas=display_canvas(source_video)
-    frames_meta = source_video['frames']
-    if len(assignments) != len(frames_meta):
-        raise ValueError('Frame ownership has a gap')
-    width, height = canvas['width'],canvas['height']
-    if width % 2 or height % 2:
-        raise ValueError('Odd output dimensions require an approved canvas plan')
-    # Group decode by file; only selected frames kept, preserving each exact requested index.
-    wanted = {}
-    for path, frame_index in assignments:
-        wanted.setdefault(str(path), set()).add(frame_index)
-    decoded = {}
-    scale_records=[]
-    for path, indices in wanted.items():
-        with av.open(path) as container:
-            stream = container.streams.video[0]
-            stream.codec_context.thread_count = 1
-            source_dar=Fraction(width,height)*Fraction(canvas['sample_aspect_ratio'])
-            candidate_dar=Fraction(stream.width,stream.height)*Fraction(stream.sample_aspect_ratio or 1)
-            rotation=None
-            native_size=None
-            all_frames=container.decode(stream)
-            for index,frame in enumerate(all_frames):
-                if rotation is None:
-                    rotation=getattr(frame,'rotation',0)%360
-                    if rotation not in (0,90,180,270):
-                        raise ValueError('Candidate has a non-orthogonal display transform')
-                    if rotation in (90,270):
-                        candidate_dar=1/candidate_dar
-                        native_size=(stream.height,stream.width)
-                    else:
-                        native_size=(stream.width,stream.height)
-                    if source_dar!=candidate_dar:
-                        raise ValueError('Candidate display aspect differs; explicit canvas repair is required')
-                    if native_size!=(width,height) or rotation:
-                        scale_records.append({'path':Path(path).name,'native':list(native_size),
-                                              'output':[width,height],'baked_rotation':rotation,
-                                              'reason':'source display-canvas normalization'})
-                if index in indices:
-                    decoded[(path,index)]=display_frame(frame,rotation)
-        if any((path, index) not in decoded for index in indices):
-            raise ValueError('Candidate does not contain all owned frames')
-    temporary = output_path.with_suffix('.part.mp4')
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    source_tb = Fraction(source_video['time_base'])
-    origin = Fraction(source_video['start_time'])
-    durations = {Fraction(r['time'])-origin: Fraction(r['duration']) for r in frames_meta}
-    with av.open(str(source_path)) as original, av.open(str(temporary), 'w') as output:
-        video = output.add_stream('libx264', rate=Fraction(source_video['fps'] or 24))
-        video.width, video.height, video.pix_fmt = width, height, 'yuv420p'
-        video.time_base = source_tb
-        video.codec_context.time_base = source_tb
-        video.codec_context.thread_count = 1
-        video.codec_context.sample_aspect_ratio = Fraction(canvas['sample_aspect_ratio'])
-        for name,value in source_video.get('color_metadata',{}).items():
-            setattr(video.codec_context,name,value)
-        video.options = {'crf': '10', 'preset': 'slow'}
-        audio_streams = {stream.index: output.add_stream_from_template(stream)
-                         for stream in original.streams.audio}
-        for source_audio in original.streams.audio:
-            target_audio=audio_streams[source_audio.index]
-            target_audio.metadata.update(dict(source_audio.metadata))
-            target_audio.disposition=source_audio.disposition
-        def mux_video(packet):
-            if packet.pts is not None:
-                time = Fraction(packet.pts) * packet.time_base
-                if time in durations:
-                    ticks = durations[time] / packet.time_base
-                    if ticks.denominator != 1:
-                        raise ValueError('Frame duration not representable in output timebase')
-                    packet.duration = int(ticks)
-            output.mux(packet)
-        for source_index, assignment in enumerate(assignments):
-            frame = decoded[(str(assignment[0]), assignment[1])].reformat(width, height, format='yuv420p')
-            time = Fraction(frames_meta[source_index]['time']) - origin
-            ticks = time / source_tb
-            if ticks.denominator != 1:
-                raise ValueError('Source PTS cannot be represented exactly')
-            frame.pts, frame.time_base = int(ticks), source_tb
-            for packet in video.encode(frame):
-                mux_video(packet)
-        for packet in video.encode():
-            mux_video(packet)
-        for packet in original.demux(list(original.streams.audio)):
-            if packet.size and packet.stream.index in audio_streams:
-                shift = origin / packet.time_base
-                if shift.denominator != 1:
-                    raise ValueError('Audio origin offset not representable without resampling')
-                if packet.pts is not None:
-                    packet.pts -= int(shift)
-                if packet.dts is not None:
-                    packet.dts -= int(shift)
-                packet.stream = audio_streams[packet.stream.index]
-                output.mux(packet)
-    report = inspect(temporary, deps, scalar_cpu)
-    actual = report['video']['frames']
-    if len(actual) != len(frames_meta):
-        raise ValueError('Final frame count mismatch')
-    tolerance = Fraction(report['video']['time_base'])
-    for expected, observed in zip(frames_meta, actual):
-        if abs(Fraction(observed['time']) - (Fraction(expected['time'])-origin)) > tolerance:
-            raise ValueError('Final PTS differs from source')
-    expected_end = Fraction(source_video['end_time'])-origin
-    if abs(Fraction(report['video']['end_time'])-expected_end) > tolerance:
-        raise ValueError('Final frame duration differs from source')
-    if (Fraction(report['video']['sample_aspect_ratio'])!=Fraction(canvas['sample_aspect_ratio']) or
-        report['video'].get('color_metadata')!=source_video.get('color_metadata')):
-        raise ValueError('Final SAR or color metadata differs from source')
-    if int(report['video'].get('rotation',0))%360:
-        raise ValueError('Normalized final must not retain a display rotation tag')
-    original_audio, final_audio = audio_packets(source_path, deps, scalar_cpu), audio_packets(temporary, deps, scalar_cpu)
-    if len(original_audio) != len(final_audio):
-        raise ValueError('Final audio stream count mismatch')
-    for expected, observed in zip(original_audio, final_audio):
-        if expected['codec'] != observed['codec'] or len(expected['packets']) != len(observed['packets']):
-            raise ValueError('Audio remux changed codec/packet count')
-        for a, b in zip(expected['packets'], observed['packets']):
-            if a['sha256'] != b['sha256'] or (a['time'] is not None and
-               abs((Fraction(a['time'])-origin)-Fraction(b['time'])) > Fraction(1, 48000)):
-                raise ValueError('Audio remux changed payload or offset')
-    original_info=inspect(source_path,deps,scalar_cpu)['audio_streams']
-    for expected,observed in zip(original_info,report['audio_streams']):
-        if (expected['sample_rate'],expected['layout'],expected['metadata'].get('language'),expected['disposition']) != \
-           (observed['sample_rate'],observed['layout'],observed['metadata'].get('language'),observed['disposition']):
-            raise ValueError('Final audio track layout/language/default metadata differs from source')
-    os.replace(temporary, output_path)
-    report['file_signature'] = signature(output_path)
-    report['audio_packet_verification'] = 'passed'
-    report['candidate_canvas_resizes']=scale_records
-    report['visual_status'] = 'pending'
-    return report
+    from assembly_session import assemble as bounded_assemble
+    return bounded_assemble(source_path, source_video, assignments, output_path, deps, scalar_cpu)

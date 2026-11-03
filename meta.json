@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -76,13 +76,17 @@
       "recovery": "attempt/client/graph-bound original prompt IDs and durable success receipts; no uncertain resubmission",
       "template_boundary": "No private local workflow/overrides; new-run migration keeps original skills unchanged",
       "gpu_visual_verification": false
-    }
+    },
+    "pilot_scope": "Current source, role-slot identities, appearance policy, backend and reviewed source risks; profile history alone never batches new identities",
+    "input_approval": "Per-window owner/context source facts and actual related identities; full source/plan validity remains global",
+    "assembly": "Bounded sequential owner decode, actual source PTS/SAR/color/audio, same-path encoding smoke, complete silent proof and mux-only recovery",
+    "cost_audit": "Read-only project/account receipts; task-ID deduplication, parent/child overlap detection, unknown fields preserved; no currency conversion"
   },
   "validation": {
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
-    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py",
-    "offline_test_count": 258,
+    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py; scripts/test_production_ops.py; scripts/test_reliability_upgrade.py",
+    "offline_test_count": 294,
     "media_and_template_tests": 70,
     "runner_tests": 75,
     "independent_forward_test_completed": true,
@@ -229,7 +233,20 @@
       "local_runner_regressions": 40,
       "http_regressions": 12,
       "scope": "Canonicalize relative Windows subfolders before safety validation; reject traversal/root/drive paths, ignore fullpath, preserve original successful receipts."
-    }
+    },
+    "maintenance_1_5": {
+      "cloud_generation_performed": false,
+      "visual_auto_approval": false,
+      "test_status": "passed",
+      "offline_runtime_tests": 294,
+      "publication_tests": 11,
+      "standalone_forward_runtime": "passed",
+      "saved_receipt_unknown_detection": "passed",
+      "local_gpu_generation_performed": false
+    },
+    "production_ops_tests": 19,
+    "reliability_upgrade_tests": 13,
+    "publication_tests": 11
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [
@@ -302,12 +319,12 @@
   },
   "display_name": "视频换角与专属技能工厂",
   "maintenance_research": {
-    "date": "2026-11-02",
+    "date": "2026-11-04",
     "rounds": 20,
     "completed": true,
-    "method": "Twenty evidence-backed maintenance topics reviewed with one sub-agent; original construction research kept separate.",
-    "report_sha256": "78da640de91934ecd86a0f87984ef7217dbc3ce2a1ba742b295232dd45bd9a61",
-    "report_publication": "Local research only; excluded from repository"
+    "method": "Twenty actual sequential proposals and independent counter-reviews, followed by implementation and fault regression.",
+    "report_sha256": "e46216bb012d24dadb367acb285173d5b5f33b25a955f1e74bf8150c7e9f341f",
+    "report_publication": "Local research only; user production records and billing excluded"
   },
   "h3_comparison_research": {
     "date": "2026-11-03",

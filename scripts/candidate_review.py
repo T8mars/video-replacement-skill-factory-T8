@@ -59,7 +59,9 @@ def prepare_evidence(project, window_id, candidate, output, mapping=None, rois=N
     from PIL import Image
     project=Path(project).resolve()
     source,analysis,window,entry,path=window_context(project,window_id,candidate)
-    report=media.inspect(path,deps,scalar_cpu)
+    report=media.inspect_cached(path,project/'candidate-cache',deps,scalar_cpu)
+    require(Fraction(report['video']['end_time'])-Fraction(report['video']['start_time'])<=10,
+            'Actual complete generated output exceeds the 10-second production cap')
     count=report['video']['frame_count'];start,end=window['source_interval']
     if mapping is not None:
         indices(mapping,start,end,count)
@@ -76,7 +78,20 @@ def prepare_evidence(project, window_id, candidate, output, mapping=None, rois=N
     # and candidate frames must never become template assets by a custom --out.
     require(destination.relative_to(project).parts and destination.relative_to(project).parts[0].casefold() not in ('assets','evidence'),
             'Candidate evidence cannot be written into reusable source assets/evidence')
-    require(not destination.exists(), 'Preserve existing evidence; use a new directory')
+    configuration={'version':1,'checker_sha256':media.signature(__file__)['sha256'],
+        'backend':__import__('assembly_session').backend_identity(deps,scalar_cpu),
+        'input_digest':entry['input_digest'],'source_signature':source['source'],
+        'output_signature':factory.file_signature(project,candidate), 'mapping':mapping,'rois':rois,'native_all':native_all}
+    if destination.exists():
+        existing=destination/'evidence.json'
+        if existing.is_file():
+            cached=factory.read(existing)
+            if cached.get('configuration')==configuration and cached.get('actual_output_frames')==count:
+                for artifact in cached.get('files',[]):bound(project,artifact)
+                require(bool(cached.get('files')), 'Cached evidence contains no image artifacts')
+                return {'evidence':factory.file_signature(project,existing.relative_to(project).as_posix()),
+                    'actual_output_frames':count,'visual_status':'pending','reused_complete_evidence':True}
+        raise ValueError('Preserve existing evidence; use a new directory for changed/incomplete proof')
     destination.mkdir(parents=True)
     files=[];overview=[];labels=[];overview_coverage=[]
     selected=set(mapping or []);output_images={};roi_coverage={r['name']:[] for r in rois}
@@ -133,7 +148,7 @@ def prepare_evidence(project, window_id, candidate, output, mapping=None, rois=N
             files.append(factory.file_signature(project,(destination/name).relative_to(project).as_posix()))
     require(factory.file_signature(project,candidate)=={'path':Path(candidate).as_posix(),**report['file_signature']}, 'Output changed during review preparation')
     require(factory.source_current(project)['source']==source['source'],'Source changed during review preparation')
-    evidence={'schema_version':1,'kind':'complete-output-evidence','window_id':window_id,
+    evidence={'schema_version':1,'configuration':configuration,'kind':'complete-output-evidence','window_id':window_id,
         'input_digest':entry['input_digest'],'source_signature':source['source'],
         'output_signature':factory.file_signature(project,candidate),'source_interval':[start,end],
         'actual_output_frames':count,'actual_output_pts':report['video']['frames'],

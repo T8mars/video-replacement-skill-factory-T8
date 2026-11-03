@@ -270,6 +270,36 @@
       "id": "windows-vhs-relative-output-recovery",
       "status": "actual-gpu-download-recovered-and-regression-verified",
       "scope": "Normalize Windows relative subfolders before traversal/root/drive checks and use view HTTP download, never server fullpath. First real local output fully decoded; visual quality remains separately unapproved."
+    },
+    {
+      "id": "identity-policy-risk-pilot-scope",
+      "status": "implemented-offline-verified",
+      "scope": "Current identity/backend/risk scopes, actual single-window promotion, stale pilot input rejection; historical profile flags never approve new references"
+    },
+    {
+      "id": "window-scoped-input-approvals",
+      "status": "implemented-offline-verified",
+      "scope": "Related source shots/roles/window/ref signatures only; full global source/plan validation retained; unchanged semantics/projection reviews preserved"
+    },
+    {
+      "id": "layered-technical-and-evidence-cache",
+      "status": "implemented-offline-verified",
+      "scope": "Checker/backend/video-bound full decode and artifact manifests reused; corrupt/missing evidence rejected and visual remains pending"
+    },
+    {
+      "id": "bounded-owner-assembly-and-mux-recovery",
+      "status": "implemented-offline-verified",
+      "scope": "Sequential candidate-group decode preserves VFR/SAR/color/rotation/audio; representative encoding smoke and verified complete silent reuse, never partial continuation"
+    },
+    {
+      "id": "readonly-rh-cost-audit",
+      "status": "implemented-offline-verified",
+      "scope": "Project/account/task-ID deduped saved top-level charges, unknown/conflicting/parent-child bills distinguished; hypothetical savings never measured savings"
+    },
+    {
+      "id": "explicit-dedicated-runtime-revision",
+      "status": "implemented-offline-verified",
+      "scope": "New standalone Chinese skills inherit runtime tools; explicit --upgrade-runtime creates a new immutable revision and clears future-run approvals"
     }
   ]
 }

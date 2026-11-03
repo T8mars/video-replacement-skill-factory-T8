@@ -277,7 +277,8 @@ class FactoryIntegration(unittest.TestCase):
         refreshed=self.queue()['jobs'][0]
         self.assertEqual(refreshed['input_digest'],entry['input_digest'])
         self.assertTrue(refreshed['production_authorized'])
-        self.assertFalse(refreshed['pilot'])
+        # A historical profile success is not current-identity pilot approval.
+        self.assertTrue(refreshed['pilot'])
 
     def test_face_only_contract_uses_only_face_dossier(self):
         self.job['replacement_mode']='face-only'
@@ -1199,7 +1200,7 @@ class FactoryIntegration(unittest.TestCase):
         plan['windows'][0]['profile_override']['quality_evidence']='case-verified'
         factory.write(project/'plan.json',plan)
         refreshed=factory.prepare(project,DEPS,SCALAR,True)
-        self.assertFalse(refreshed['jobs'][0]['pilot'])
+        self.assertTrue(refreshed['jobs'][0]['pilot'])  # Profile history is not current-identity approval.
         self.assertEqual([e['input_digest'] for e in refreshed['jobs']],[e['input_digest'] for e in queue['jobs']])
 
     def test_vfr_prepare_requires_projection_review_and_legacy_24_evidence(self):

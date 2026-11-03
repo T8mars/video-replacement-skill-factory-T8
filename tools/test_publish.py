@@ -19,6 +19,9 @@ class PublishGuard(unittest.TestCase):
     def test_roadmap_any_case_and_directory_blocked(self):
         for name in ('ROADMAP.MD','roadmap.md','docs/RoAdMaP.Md'):
             self.assertTrue(guard.check_payload(name,b'planning'))
+    def test_private_git_binary_and_live_ledger_sidecars_blocked(self):
+        for name in ('.git/config','tools/ffmpeg.exe','lib/codec.dll','tasks.sqlite-wal','tasks.db-shm','local.pfx'):
+            self.assertTrue(guard.check_payload(name,b'fixture'),name)
     def test_key_file_and_embedded_known_value_blocked(self):
         self.assertTrue(guard.check_payload('private/api_key.txt',b'fixture'))
         key=b'OFFLINE_ONLY_'+b'Q'*32

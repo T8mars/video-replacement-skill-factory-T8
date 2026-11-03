@@ -33,7 +33,12 @@
     "scripts/test_comfy_workflow.py",
     "scripts/test_comfy_runner.py",
     "scripts/test_comfy_http.py",
-    "references/local-comfyui.md"
+    "references/local-comfyui.md",
+    "scripts/assembly_session.py",
+    "scripts/pilot_scope.py",
+    "scripts/cost_audit.py",
+    "scripts/test_production_ops.py",
+    "scripts/test_reliability_upgrade.py"
   ],
   "repository_files": [
     ".gitignore",

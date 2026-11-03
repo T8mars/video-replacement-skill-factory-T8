@@ -458,6 +458,8 @@ def preflight(project, entry):
             raise ValueError('Standard H3 ratio limit')
     else:
         raise ValueError('Unsupported cloud profile')
+    import pilot_scope
+    pilot_scope.approval(project,entry)
     return digest
 
 
@@ -486,6 +488,10 @@ class Runner:
     def submit_one(self, project, entry, validator=None):
         validator = validator or preflight
         digest = validator(project, entry)
+        accepted=self.ledger.db.execute('SELECT digest FROM attempts WHERE account=? AND project=? AND window=? AND task_id IS NOT NULL LIMIT 1',
+            (self.account,str(Path(project).resolve()),entry['window_id'])).fetchone()
+        if accepted and accepted['digest']!=digest:
+            raise ValueError('Accepted candidate ID is immutable; use a new revision for changed inputs')
         if not self.ledger.can_submit(self.account, project, entry['window_id'], digest, entry.get('retry_after')):
             return None
         if entry['profile']['kind'] == 'standard-h3' and self.ledger.db.execute(
@@ -532,7 +538,9 @@ class Runner:
                                   entry.get('retry_after'), block_uncertain=True)
         if not aid:
             return None
-        self.ledger.update(aid, request=json.dumps({'path': path, 'body': body}, ensure_ascii=False))
+        request={'path':path,'body':body}
+        if entry.get('pilot_scope'):request['pilot_scope']=entry['pilot_scope']
+        self.ledger.update(aid, request=json.dumps(request, ensure_ascii=False))
         try:
             res = self.transport.submit(path, body)
         except ApiFailure as e:
@@ -637,6 +645,8 @@ class Runner:
             for entry in jobs:
                 if entry.get('passthrough'):
                     continue
+                if not self.ledger.can_submit(self.account,project,entry['window_id'],entry['input_digest'],entry.get('retry_after')):
+                    continue
                 preflight(project, entry)
             for entry in jobs:
                 if entry.get('passthrough'):
@@ -644,10 +654,23 @@ class Runner:
                 a = self.ledger.account(self.account)
                 if a['stopped'] or a['cooldown'] > self.ledger.clock() or self.ledger.has_uncertain(self.account):
                     break
-                # A new backend gets one production pilot, not an unreviewed batch.
-                if entry['profile'].get('quality_evidence') != 'case-verified' and not entry.get('pilot'):
+                if not self.ledger.can_submit(self.account,project,entry['window_id'],entry['input_digest'],entry.get('retry_after')):
                     continue
-                if entry['profile'].get('quality_evidence') != 'case-verified':
+                # Current identities/policy/risk, not a historical profile label,
+                # determine whether this route has a reviewed pilot.
+                if entry.get('pilot_scope'):
+                    import pilot_scope
+                    current_approved=pilot_scope.check(project,entry)
+                    if not current_approved and not entry.get('pilot'):continue
+                    if not current_approved:
+                        prior_scopes=self.ledger.db.execute('SELECT request FROM attempts WHERE account=? AND project=? AND window<>?',
+                            (self.account,str(Path(project).resolve()),entry['window_id'])).fetchall()
+                        if any(r['request'] and json.loads(r['request']).get('pilot_scope')==entry['pilot_scope'] for r in prior_scopes):continue
+                elif entry['profile'].get('quality_evidence') != 'case-verified' and not entry.get('pilot'):
+                    # Legacy in-memory fixtures/old queues can still recover IDs.
+                    # Real new POSTs without a scope fail preflight above.
+                    continue
+                elif entry['profile'].get('quality_evidence') != 'case-verified':
                     prior_routes = self.ledger.db.execute('SELECT request FROM attempts WHERE account=? AND project=? AND window<>?',
                                                          (self.account, str(Path(project).resolve()), entry['window_id'])).fetchall()
                     if any(same_profile_route(entry['profile'], r['request']) for r in prior_routes):
@@ -678,7 +701,7 @@ class Runner:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('command', choices=('tick', 'status', 'stop', 'resume', 'recover-unknown', 'visual-failed'))
+    ap.add_argument('command', choices=('tick', 'status', 'stop', 'resume', 'recover-unknown', 'visual-failed','pilot-promote'))
     ap.add_argument('--project', type=Path)
     ap.add_argument('--ledger', type=Path, default=default_private() / 'tasks.sqlite')
     ap.add_argument('--key-file', type=Path, default=default_key())
@@ -686,7 +709,13 @@ def main():
     ap.add_argument('--attempt')
     ap.add_argument('--task-id')
     ap.add_argument('--failure-record', type=Path)
+    ap.add_argument('--window-id')
     args = ap.parse_args()
+    if args.command=='pilot-promote':
+        if not args.project or not args.window_id:ap.error('pilot-promote requires --project and --window-id')
+        import pilot_scope
+        print(json.dumps(pilot_scope.promote(args.project,args.window_id),ensure_ascii=False,indent=2))
+        return
     led = Ledger(args.ledger)
     try:
         if args.command == 'status':
