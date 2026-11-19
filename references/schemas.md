@@ -1,6 +1,6 @@
 # 公共合同与脚本接口
 
-`job.profile.kind` 支持 legacy-ai-app、standard-h3 和可选 local-comfyui。本地 API 图、副本SHA、输入/输出绑定、精确参考槽位和声明帧网格见 [本地合同](local-comfyui.md)。同服务的本地提交共享一个串行位；原源、投影、候选和成片审核沿用本文件合同。没有生成目标的passthrough不受10秒生成上限限制。
+`job.profile.kind` 支持 legacy-ai-app、standard-h3、zhenzhen-charswap 和可选 local-comfyui。新云端 run 首先用 `factory.py select-channel` 记录渠道并换算已有分段，角色观测、费用与按帧接口见[贞贞 AI 合同](zhenzhen.md)。本地 API 图、副本SHA、输入/输出绑定、精确参考槽位和声明帧网格见 [本地合同](local-comfyui.md)。同服务的本地提交共享一个串行位；原源、投影、候选和成片审核沿用本文件合同。没有生成目标的passthrough不受10秒生成上限限制。
 
 分段规则：按原片实际镜头、已核自然动作及机位阶段切分，每段保留自己的原始长度；不设置固定5秒默认。需要生成的单段源区间与完整生成视频都不得超过10秒，生成时长包含context、preroll、慢速扩展及补齐。超过上限的连续长镜在核对过的动作阶段边界拆分，接回后仍保持原运动连续，不新增切镜。
 所有JSON schema_version=1，运行路径相对project并限制在其内。源、外部身份资料先复制校验SHA。公共合同与私有cloud receipt/URL/密钥分开。

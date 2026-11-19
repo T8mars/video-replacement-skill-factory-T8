@@ -204,7 +204,7 @@ class Transport:
 
     def _download_https(self, url, temp):
         began = time.monotonic()
-        with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as r, temp.open('wb') as f:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=getattr(self, 'download_headers', {})), timeout=30) as r, temp.open('wb') as f:
             expected = r.headers.get('Content-Length')
             written = 0
             while True:
@@ -397,10 +397,10 @@ class Ledger:
         self.cooldown(row['account'])
         self.event(aid, 'QUERY_DEFERRED', {'code': str(code)})
 
-    def cooldown(self, alias):
+    def cooldown(self, alias, delay=60):
         self.account(alias)
         self.db.execute('UPDATE accounts SET cooldown=MAX(cooldown,?) WHERE alias=?',
-                        (self.clock()+60, alias))
+                        (self.clock()+max(60, delay), alias))
 
     def stop(self, alias):
         self.account(alias)
@@ -432,6 +432,10 @@ def preflight(project, entry):
     current_job = json.loads((Path(project) / 'job.json').read_text(encoding='utf-8'))
     if current_job.get('production_authorized') is not True:
         raise ValueError('Current job has no production authorization; stale queue authorization cannot submit')
+    chosen = current_job.get('channel')
+    is_zz = entry['profile']['kind'] == 'zhenzhen-charswap'
+    if chosen and ((chosen == 'zhenzhen') != is_zz):
+        raise ValueError('Window channel differs from current project selection')
     window=(entry.get('source_contract') or {}).get('window',{})
     if 'generation_fps' not in window or 'duration' not in entry:
         raise ValueError('Request requires an explicit generation frame clock and duration')
@@ -449,6 +453,15 @@ def preflight(project, entry):
         if (len(refs) != expected or Fraction(window['generation_fps']) != 24 or
                 entry['generation_frames'] not in LEGACY_FRAME_COUNTS[p['app_id']]):
             raise ValueError('Legacy slot/frame count/fps is outside this application observed profile')
+    elif p['kind'] == 'zhenzhen-charswap':
+        import zhenzhen_runner as zz
+        zz.validate_window(p, window, window['role_slots'])
+        slots = window['role_slots']
+        expected_paths = [current_job['references'][slot]['path'] for slot in slots]
+        if entry['reference_paths'] != expected_paths or entry['local_bindings'] != [
+                {'slot': slot, 'subject': i, 'picture': i} for i, slot in enumerate(slots, 1)]:
+            raise ValueError('Missing ordered charswap reference')
+        zz.validate_files(refs, asset(project, entry['video_path']))
     elif p['kind'] == 'standard-h3':
         if not 1 <= len(refs) <= 9 or str(entry['duration']) not in tuple(str(n) for n in range(5, 16)):
             raise ValueError('Standard H3 reference/duration limit')
@@ -483,9 +496,29 @@ class Runner:
     def upload(self, path, semantics):
         # Provider temporary node321 handles expired inside the former six-hour TTL.
         # Cache only inside one new request; recovery never calls this method.
-        return self.transport.upload(path)
+        if semantics != 'zhenzhen-charswap':
+            return self.transport.upload(path)
+        scope = semantics + ':' + self.key_fingerprint()
+        signature = sha(path)
+        cached = self.ledger.db.execute(
+            'SELECT data FROM uploads WHERE account=? AND sha=? AND semantics=? AND expires>?',
+            (self.account, signature, scope, self.ledger.clock() + 1800)).fetchone()
+        if cached:
+            return json.loads(cached['data'])
+        result = self.transport.upload(path)
+        self.ledger.db.execute('INSERT OR REPLACE INTO uploads VALUES(?,?,?,?,?)',
+            (self.account, signature, scope, json.dumps(result), self.ledger.clock() + result['expires_in']))
+        return result
+
+    def check_route(self, entry):
+        kind = entry['profile']['kind']
+        supported = (('zhenzhen-charswap',) if getattr(self.transport, 'provider', 'rh') == 'zhenzhen'
+                     else ('legacy-ai-app', 'standard-h3'))
+        if kind not in supported:
+            raise ValueError('Queue belongs to another channel; use its runner and ledger')
 
     def submit_one(self, project, entry, validator=None):
+        self.check_route(entry)
         validator = validator or preflight
         digest = validator(project, entry)
         accepted=self.ledger.db.execute('SELECT digest FROM attempts WHERE account=? AND project=? AND window=? AND task_id IS NOT NULL LIMIT 1',
@@ -514,7 +547,13 @@ class Runner:
         video = request_upload(asset(project, entry['video_path']))
         prompt = asset(project, entry['prompt_path']).read_text(encoding='utf-8')
         p = entry['profile']
-        if kind == 'legacy-ai-app':
+        quote = None
+        if kind == 'zhenzhen-charswap':
+            import zhenzhen_runner as zz
+            path = zz.GENERATIONS
+            body = zz.payload(p, prompt, refs, video, entry['generation_frames'])
+            quote = self.transport.estimate(body)
+        elif kind == 'legacy-ai-app':
             nodes = [{'nodeId': '137', 'fieldName': 'image', 'fieldValue': refs[0]['filename']},
                      {'nodeId': '138', 'fieldName': 'value', 'fieldValue': prompt},
                      {'nodeId': '321', 'fieldName': 'video', 'fieldValue': video['filename']},
@@ -539,11 +578,15 @@ class Runner:
         if not aid:
             return None
         request={'path':path,'body':body}
+        if quote is not None:
+            request['estimate'] = quote
         if entry.get('pilot_scope'):request['pilot_scope']=entry['pilot_scope']
         self.ledger.update(aid, request=json.dumps(request, ensure_ascii=False))
         try:
             res = self.transport.submit(path, body)
         except ApiFailure as e:
+            if e.code == '429':
+                self.ledger.cooldown(self.account, getattr(e, 'retry_after', 60))
             # An HTTP 5xx can occur after the server accepted the job.
             if e.code in ('400', '401', '402', '403', '1913', '1014') + DEFERRED_CODES:
                 self.submission_rejected(aid, e.code)
@@ -574,10 +617,17 @@ class Runner:
         if row['next_poll'] > self.ledger.clock():
             return
         try:
-            res = self.transport.query(row['task_id'])
+            if (getattr(self.transport, 'provider', 'rh') == 'zhenzhen'
+                    and row['state'] == 'RESULTS_READY' and row['result_url'] and row['receipt']):
+                res = json.loads(row['receipt'])
+            else:
+                res = self.transport.query(row['task_id'])
         except ApiFailure as e:
             if e.code in DEFERRED_CODES:
                 self.ledger.defer_query(aid, e.code)
+                if getattr(e, 'retry_after', 0) > 60:
+                    self.ledger.cooldown(self.account, e.retry_after)
+                    self.ledger.update(aid, next_poll=self.ledger.clock() + e.retry_after)
                 return
             if e.code in ('401', '402', '403', '1913'):
                 self.ledger.stop(self.account)
@@ -615,7 +665,7 @@ class Runner:
         videos = [r for r in results if r.get('url') and (str(r.get('outputType', '')).lower() in ('mp4', 'mov', 'video') or '.mp4' in r['url'].split('?')[0].lower())]
         if len(videos) != 1:
             n = row['missing_results'] + 1
-            self.ledger.update(aid, state='RESULTS_MISSING' if n >= 3 else 'SUCCESS_RESULTS_PENDING',
+            self.ledger.update(aid, state='RESULTS_MISSING' if n >= 3 and getattr(self.transport, 'provider', 'rh') != 'zhenzhen' else 'SUCCESS_RESULTS_PENDING',
                                receipt=json.dumps(res), missing_results=n, next_poll=self.ledger.clock() + 30)
             return
         url = videos[0]['url']
@@ -634,6 +684,9 @@ class Runner:
                                next_poll=self.ledger.clock() + min(300, 30 * 2 ** min(4, row['download_errors'])))
 
     def tick(self, project, queue):
+        for entry in queue['jobs']:
+            if not entry.get('passthrough'):
+                self.check_route(entry)
         # Query first, release completed execution slots, refill, then transfer.
         # A long completed-file download must not leave authorized paid slots idle.
         rows = self.ledger.db.execute('SELECT id FROM attempts WHERE account=? AND state IN (?,?,?,?,?,?) ORDER BY created', (self.account, *POLLABLE)).fetchall()
@@ -647,6 +700,10 @@ class Runner:
                     continue
                 if not self.ledger.can_submit(self.account,project,entry['window_id'],entry['input_digest'],entry.get('retry_after')):
                     continue
+                if entry.get('pilot_scope') and not entry.get('pilot'):
+                    import pilot_scope
+                    if not pilot_scope.check(project,entry):
+                        continue
                 preflight(project, entry)
             for entry in jobs:
                 if entry.get('passthrough'):
@@ -683,7 +740,7 @@ class Runner:
                     if e.code in ('401', '402', '403', '1913'):
                         self.ledger.stop(self.account)
                     elif e.code in DEFERRED_CODES:
-                        self.ledger.cooldown(self.account)
+                        self.ledger.cooldown(self.account, getattr(e, 'retry_after', 60))
                         break
                     raise
                 except (urllib.error.URLError, TimeoutError, ConnectionError):
@@ -699,18 +756,26 @@ class Runner:
         return self.ledger.summary(self.account)
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('command', choices=('tick', 'status', 'stop', 'resume', 'recover-unknown', 'visual-failed','pilot-promote'))
+def main(provider='rh'):
+    is_zz = provider == 'zhenzhen'
+    transport_type = Transport
+    if is_zz:
+        from zhenzhen_runner import Transport as transport_type
+    ap = argparse.ArgumentParser(description=(transport_type.__module__ + ' character replacement runner' if is_zz else __doc__))
+    ap.add_argument('command', choices=('tick', 'status', 'stop', 'resume', 'recover-unknown', 'visual-failed','pilot-promote') + (('settle',) if is_zz else ()))
     ap.add_argument('--project', type=Path)
-    ap.add_argument('--ledger', type=Path, default=default_private() / 'tasks.sqlite')
-    ap.add_argument('--key-file', type=Path, default=default_key())
+    ap.add_argument('--ledger', type=Path, default=default_private() / ('zhenzhen.sqlite' if is_zz else 'tasks.sqlite'))
+    ap.add_argument('--key-file', type=Path, default=(codex_home() / 'secrets' / 'seedance_charswap.key' if is_zz else default_key()))
     ap.add_argument('--account', default='default')
     ap.add_argument('--attempt')
     ap.add_argument('--task-id')
     ap.add_argument('--failure-record', type=Path)
     ap.add_argument('--window-id')
     args = ap.parse_args()
+    if args.account.startswith('zhenzhen:'):
+        ap.error('Use a plain account alias')
+    if is_zz:
+        args.account = 'zhenzhen:' + args.account
     if args.command=='pilot-promote':
         if not args.project or not args.window_id:ap.error('pilot-promote requires --project and --window-id')
         import pilot_scope
@@ -732,8 +797,23 @@ def main():
             led.db.execute('UPDATE attempts SET download_errors=0 WHERE account=?', (args.account,))
             led.db.execute("UPDATE attempts SET state='SUCCESS_RESULTS_PENDING',missing_results=0 WHERE account=? AND state='RESULTS_MISSING'", (args.account,))
             led.event(None, 'HUMAN_RESUME', {'account': args.account})
+        elif args.command == 'settle':
+            if not args.project:
+                ap.error('settle requires --project')
+            transport = transport_type(args.key_file.read_text(encoding='utf-8-sig').strip())
+            rows = led.db.execute("""SELECT id, task_id, receipt FROM attempts
+                WHERE account=? AND project=? AND state IN ('EXECUTION_FAILED','DOWNLOADED','VISUAL_FAILED')
+                AND task_id IS NOT NULL""", (args.account, str(args.project.resolve()))).fetchall()
+            for row in rows:
+                usage = (json.loads(row['receipt'] or '{}').get('usage') or {})
+                if usage.get('amount') is None or not usage.get('currency'):
+                    receipt = transport.query(row['task_id'])
+                    if receipt['status'] in ('FAILED', 'SUCCESS') and receipt.get('usage'):
+                        led.update(row['id'], receipt=json.dumps(receipt))
         elif args.command == 'visual-failed':
             row = led.row(args.attempt)
+            if row['account'] != args.account:
+                raise ValueError('Attempt belongs to another account or channel')
             rec = json.loads(args.failure_record.read_text(encoding='utf-8'))
             if row['state'] != 'DOWNLOADED' or not row['output']:
                 raise ValueError('Visual failure requires a downloaded candidate')
@@ -743,10 +823,12 @@ def main():
             led.event(row['id'], 'VISUAL_FAILURE', rec)
         elif args.command == 'recover-unknown':
             row = led.row(args.attempt)
+            if row['account'] != args.account:
+                raise ValueError('Attempt belongs to another account or channel')
             if row['state'] not in ('SUBMITTING', 'SUBMISSION_UNKNOWN') or not args.task_id:
                 raise ValueError('Only reconcile an uncertain submission with an identified task receipt')
             key = args.key_file.read_text(encoding='utf-8').strip()
-            transport = Transport(key)
+            transport = transport_type(key)
             receipt = transport.query(args.task_id)
             if str(receipt.get('taskId', args.task_id)) != args.task_id:
                 raise ValueError('Task query mismatch')
@@ -762,7 +844,7 @@ def main():
             key = args.key_file.read_text(encoding='utf-8').strip()
             if not key:
                 raise ValueError('Private API key is missing')
-            Runner(led, Transport(key), args.account).tick(args.project, queue)
+            Runner(led, transport_type(key), args.account).tick(args.project, queue)
         print(json.dumps(led.summary(args.account), ensure_ascii=False, indent=2))
     except Exception as e:
         # Do not forward HTTP response details or URL-bearing exception messages.

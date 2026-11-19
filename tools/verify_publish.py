@@ -77,7 +77,8 @@ def known_keys(explicit=None):
     configured=git('config','--get','factory.keyFile',required=False).decode().strip()
     home=Path(os.environ.get('CODEX_HOME') or Path.home()/'.codex')
     path=Path(explicit or configured) if explicit or configured else home/'private/r2va-character-replacement/api_key.txt'
-    return [path.read_bytes().strip()] if path.is_file() else []
+    paths = {path, home/'private/r2va-character-replacement/api_key.txt', home/'secrets/seedance_charswap.key'}
+    return [p.read_bytes().strip() for p in paths if p.is_file()]
 
 def tree(revision=None):
     if revision is None:

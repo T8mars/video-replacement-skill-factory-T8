@@ -300,6 +300,26 @@
       "id": "explicit-dedicated-runtime-revision",
       "status": "implemented-offline-verified",
       "scope": "New standalone Chinese skills inherit runtime tools; explicit --upgrade-runtime creates a new immutable revision and clears future-run approvals"
+    },
+    {
+      "id": "zhenzhen-charswap",
+      "status": "implemented-offline-verified",
+      "scope": "Ordered multipart references, frame grid, guarded submission, download recovery and separate ledger."
+    },
+    {
+      "id": "joint-role-review",
+      "status": "implemented-offline-verified",
+      "scope": "Source-timed cast and item ownership observations bound to candidate, ordered reference inputs and frame mapping."
+    },
+    {
+      "id": "settled-generated-seconds",
+      "status": "implemented-offline-verified",
+      "scope": "Unique terminal usage per currency divided by all decoded generated durations across the specified runs."
+    },
+    {
+      "id": "music-only-edition",
+      "status": "implemented-offline-verified",
+      "scope": "Sample-aligned reusable WAV and independently verified video packet copy from a completed MP4."
     }
   ]
 }

@@ -38,7 +38,13 @@
     "scripts/pilot_scope.py",
     "scripts/cost_audit.py",
     "scripts/test_production_ops.py",
-    "scripts/test_reliability_upgrade.py"
+    "scripts/test_reliability_upgrade.py",
+    "scripts/zhenzhen_runner.py",
+    "scripts/zhenzhen_cost.py",
+    "scripts/role_review.py",
+    "scripts/replace_music.py",
+    "scripts/test_zhenzhen.py",
+    "references/zhenzhen.md"
   ],
   "repository_files": [
     ".gitignore",

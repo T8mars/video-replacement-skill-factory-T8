@@ -1,3 +1,3 @@
 interface:
   display_name: "视频换角与专属技能工厂"
-  short_description: "自动完成每个新视频的人物替换、画面修复及专属可复用技能创建"
+  short_description: "通过 RH 或贞贞 AI 完成人物替换、画面复核及中文专属技能创建"

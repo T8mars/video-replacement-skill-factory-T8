@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -64,7 +64,7 @@
       "final_ready_dynamic_gate": "unchanged; missing evidence stays pending"
     },
     "scalar_cpu_scope": "Current WindowsPyAV and derived-audio FFmpeg subprocess; default otherplatform path unchanged.",
-    "upload_reuse": "Fresh per paid request; same-byte de-duplication only within one request; known task recovery never reuploads",
+    "upload_reuse": "RH fresh handles per request. Zhenzhen SHA-256 cache scoped by account and credential, refreshed 30 minutes before signed URL expiry.",
     "candidate_clock": "Strict nominal PTS by default; explicit current-evidence-bound measured source poses when actual model action clock differs",
     "temporary_network_recovery": "Known-ID query/download retries persist with bounded backoff up to300seconds; distinct from execution failure count",
     "source_template_boundary": "Known current-run candidate/proof/delivery artifact kinds rejected from reusable source evidence",
@@ -80,13 +80,29 @@
     "pilot_scope": "Current source, role-slot identities, appearance policy, backend and reviewed source risks; profile history alone never batches new identities",
     "input_approval": "Per-window owner/context source facts and actual related identities; full source/plan validity remains global",
     "assembly": "Bounded sequential owner decode, actual source PTS/SAR/color/audio, same-path encoding smoke, complete silent proof and mux-only recovery",
-    "cost_audit": "Read-only project/account receipts; task-ID deduplication, parent/child overlap detection, unknown fields preserved; no currency conversion"
+    "cost_audit": "Read-only project/account receipts; task-ID deduplication, parent/child overlap detection, unknown fields preserved; no currency conversion",
+    "cloud_channels": [
+      "RunningHub",
+      "Zhenzhen AI"
+    ],
+    "channel_selection": "Ask on a new identity run unless specified; persist the choice and resume the original provider IDs.",
+    "zhenzhen": {
+      "profile": "zhenzhen-charswap",
+      "model": "minimax-h3-comfyui-charswap",
+      "credentials": "CODEX_HOME/secrets/seedance_charswap.key",
+      "ledger": "CODEX_HOME/private/video-replacement-skill-factory/zhenzhen.sqlite",
+      "documentation": "references/zhenzhen.md",
+      "measured_input_fps": 24,
+      "min_input_frames": 56,
+      "max_input_frames": 226,
+      "frame_step": 17
+    }
   },
   "validation": {
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
-    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py; scripts/test_production_ops.py; scripts/test_reliability_upgrade.py",
-    "offline_test_count": 294,
+    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py; scripts/test_production_ops.py; scripts/test_reliability_upgrade.py; scripts/test_zhenzhen.py",
+    "offline_test_count": 306,
     "media_and_template_tests": 70,
     "runner_tests": 75,
     "independent_forward_test_completed": true,
@@ -246,7 +262,15 @@
     },
     "production_ops_tests": 19,
     "reliability_upgrade_tests": 13,
-    "publication_tests": 11
+    "publication_tests": 11,
+    "maintenance_1_6": {
+      "runtime_tests": 306,
+      "publication_tests": 11,
+      "new_regressions": 12,
+      "new_paid_generations": 0,
+      "prior_response_pairs_replayed_offline": 27,
+      "includes_standalone_zip_channel_switch": true
+    }
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",
   "documentation_updates": [

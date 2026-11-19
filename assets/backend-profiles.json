@@ -2,6 +2,15 @@
   "schema_version": 1,
   "checked_at": "2026-11-02",
   "profiles": {
+    "zhenzhen-charswap": {
+      "kind": "zhenzhen-charswap",
+      "model": "minimax-h3-comfyui-charswap",
+      "resolution": "1088p",
+      "ratio": "auto",
+      "quality_evidence": "requires-current-pilot",
+      "limits": {"fps": ["24"], "identity_slots": 9},
+      "evidence": {"url": "https://api.seedance.nz/docs/llms.txt", "scope": "Published file and frame contract; two-second motion input minimum observed in production"}
+    },
     "legacy-one": {
       "kind": "legacy-ai-app",
       "app_id": "2107844752011010050",

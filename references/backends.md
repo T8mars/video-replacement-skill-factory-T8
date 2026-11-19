@@ -1,5 +1,7 @@
 # 接口、私有配置与恢复
 
+选定贞贞 AI 时，使用 [H3 角色替换调用说明](zhenzhen.md) 和 `scripts/zhenzhen_runner.py`。下文的应用节点、凭据与接口属于 RunningHub。
+
 本地 ComfyUI 是独立可选路径，读取 [本地工作流接入](local-comfyui.md)。它不需要 RH Key，使用用户提供的 API 图、当前安装的节点定义和同服务共享串行账本；本节的 RH 应用节点、帧数和3并发不套给本地。
 
 profile读取 [backend-profiles.json](../assets/backend-profiles.json) 复制到job。已观察能力与官方文档分开，未知不猜。
