@@ -1,10 +1,26 @@
 # 视频换角与专属技能工厂
 
+## 调用入口与优惠
+
+| 平台 | 入口 | 优惠 |
+| --- | --- | --- |
+| 贞贞 AI | [贞贞 AI 调用](https://www.zzai.app) | 免费 GPT Image 2.6 |
+| RunningHub | [国内站](https://www.runninghub.cn?inviteCode=kol01-rh099) · [国际站](https://www.runninghub.ai?inviteCode=rh-v1121) | 每日 3 次免费 H3 及优惠券 |
+| 晨羽 | [晨羽调用](https://www.chenyu.cn/console/login?invitationCode=NGT5S4) | T8 专属优惠券，见下表 |
+
+| 晨羽优惠 | 数量或领取条件 | 券码 |
+| --- | --- | --- |
+| 0.1 = 5 | 300 张 | `W6TGFF` |
+| 30 = 45 | 300 张 | `T8AIGC` |
+| 50 = 100 | 每位粉丝均可领取，每个账号限领一次 | `50VS50` |
+
+更多镜像陆续更新，可搜索 **t8star**。
+
 > **使用 RunningHub（RH）云端生成时，需要有对应账号并配置自己的 API Key。** 贞贞 AI 渠道可使用自己的[贞贞 AI 账号](https://api.seedance.nz/sign-up?aff=5f4w)和私有 Key。也可使用已有的本机 ComfyUI/H3 和自己提供的 API 工作流，见[本地接入说明](references/local-comfyui.md)。
 >
 > 注册入口（按作者提供的站点分类）：
 > - **海外（无审核）**：[RunningHub 海外站注册](https://www.runninghub.ai/?inviteCode=rh-v1121)
-> - **国内（强审核）**：[RunningHub 国内站注册](https://www.runninghub.cn/?inviteCode=rh-v1121)
+> - **国内（强审核）**：[RunningHub 国内站注册](https://www.runninghub.cn?inviteCode=kol01-rh099)
 >
 > 实际账号权限、可用模型和审核要求以平台当前规则为准。注册入口不会自动切换脚本的接口地址。
 
