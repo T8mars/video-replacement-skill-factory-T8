@@ -72,6 +72,9 @@ def same_profile_route(profile, private_request):
                 body.get('instanceType') == profile.get('instance_type', 'plus') and
                 sorted((n['nodeId'],n['fieldName'],str(n['fieldValue'])) for n in body.get('nodeInfoList',[]) if n.get('nodeId') in ('115','214')) ==
                 sorted((n['nodeId'],n['fieldName'],str(n['fieldValue'])) for n in legacy_resolution_nodes(profile)))
+    if profile['kind'] == 'chenyu-workflow':
+        return (request['path'] == '/workflow/run/submit' and body.get('workflow_id') == profile['workflow_id']
+                and body.get('revision_id') == profile['revision_id'])
     return (request['path'] == '/openapi/v2/minimax/hailuo-h3/multimodal-to-video' and
             body.get('resolution') == profile.get('resolution', '2K') and body.get('ratio') == profile.get('ratio', 'adaptive'))
 
@@ -326,7 +329,7 @@ class Ledger:
                                (alias, *ACTIVE)).fetchone()[0]
         return used < a['cap']
 
-    def reserve(self, alias, project, window, digest, retry_after=None, block_uncertain=False):
+    def reserve(self, alias, project, window, digest, retry_after=None, block_uncertain=False, request=None):
         self.db.execute('BEGIN IMMEDIATE')
         try:
             # UNKNOWN is always an account-wide barrier, including legacy callers.
@@ -337,8 +340,8 @@ class Ledger:
                 return None
             aid = uuid.uuid4().hex
             now = self.clock()
-            self.db.execute('INSERT INTO attempts(id,account,project,window,digest,state,created,updated) VALUES(?,?,?,?,?,?,?,?)',
-                            (aid, alias, str(Path(project).resolve()), window, digest, 'SUBMITTING', now, now))
+            self.db.execute('INSERT INTO attempts(id,account,project,window,digest,state,created,updated,request) VALUES(?,?,?,?,?,?,?,?,?)',
+                            (aid, alias, str(Path(project).resolve()), window, digest, 'SUBMITTING', now, now, request))
             self.event(aid, 'INTENT_RECORDED', {'input_digest': digest})
             self.db.execute('COMMIT')
             return aid
@@ -433,8 +436,9 @@ def preflight(project, entry):
     if current_job.get('production_authorized') is not True:
         raise ValueError('Current job has no production authorization; stale queue authorization cannot submit')
     chosen = current_job.get('channel')
-    is_zz = entry['profile']['kind'] == 'zhenzhen-charswap'
-    if chosen and ((chosen == 'zhenzhen') != is_zz):
+    routes = {'chenyu-workflow':'chenyu', 'zhenzhen-charswap':'zhenzhen',
+              'standard-h3':'rh-standard', 'legacy-ai-app':'rh'}
+    if chosen and chosen != routes.get(entry['profile']['kind']):
         raise ValueError('Window channel differs from current project selection')
     window=(entry.get('source_contract') or {}).get('window',{})
     if 'generation_fps' not in window or 'duration' not in entry:
@@ -453,15 +457,18 @@ def preflight(project, entry):
         if (len(refs) != expected or Fraction(window['generation_fps']) != 24 or
                 entry['generation_frames'] not in LEGACY_FRAME_COUNTS[p['app_id']]):
             raise ValueError('Legacy slot/frame count/fps is outside this application observed profile')
-    elif p['kind'] == 'zhenzhen-charswap':
-        import zhenzhen_runner as zz
-        zz.validate_window(p, window, window['role_slots'])
+    elif p['kind'] in ('zhenzhen-charswap','chenyu-workflow'):
+        if p['kind'] == 'chenyu-workflow':
+            from chenyu_runner import validate_window
+        else:
+            from zhenzhen_runner import validate_window, validate_files
+            validate_files(refs, asset(project, entry['video_path']))
+        validate_window(p, window, window['role_slots'])
         slots = window['role_slots']
         expected_paths = [current_job['references'][slot]['path'] for slot in slots]
         if entry['reference_paths'] != expected_paths or entry['local_bindings'] != [
                 {'slot': slot, 'subject': i, 'picture': i} for i, slot in enumerate(slots, 1)]:
             raise ValueError('Missing ordered charswap reference')
-        zz.validate_files(refs, asset(project, entry['video_path']))
     elif p['kind'] == 'standard-h3':
         if not 1 <= len(refs) <= 9 or str(entry['duration']) not in tuple(str(n) for n in range(5, 16)):
             raise ValueError('Standard H3 reference/duration limit')
@@ -512,8 +519,9 @@ class Runner:
 
     def check_route(self, entry):
         kind = entry['profile']['kind']
-        supported = (('zhenzhen-charswap',) if getattr(self.transport, 'provider', 'rh') == 'zhenzhen'
-                     else ('legacy-ai-app', 'standard-h3'))
+        provider = getattr(self.transport, 'provider', 'rh')
+        supported = {'rh':('legacy-ai-app','standard-h3'), 'zhenzhen':('zhenzhen-charswap',),
+                     'chenyu':('chenyu-workflow',)}.get(provider, ())
         if kind not in supported:
             raise ValueError('Queue belongs to another channel; use its runner and ledger')
 
@@ -537,6 +545,9 @@ class Runner:
         if kind=='legacy-ai-app':
             validate_legacy_canvas(entry)
         resolution_nodes=legacy_resolution_nodes(entry['profile']) if kind=='legacy-ai-app' else []
+        quote = None
+        if kind == 'chenyu-workflow':
+            quote = self.transport.inspect_route(entry['profile'], len(entry['reference_paths']))
         uploaded = {}
         def request_upload(path):
             fingerprint = sha(path)
@@ -547,8 +558,11 @@ class Runner:
         video = request_upload(asset(project, entry['video_path']))
         prompt = asset(project, entry['prompt_path']).read_text(encoding='utf-8')
         p = entry['profile']
-        quote = None
-        if kind == 'zhenzhen-charswap':
+        if kind == 'chenyu-workflow':
+            import chenyu_runner as cy
+            path = cy.SUBMIT
+            body = cy.payload(p, prompt, refs, video, entry['generation_frames'])
+        elif kind == 'zhenzhen-charswap':
             import zhenzhen_runner as zz
             path = zz.GENERATIONS
             body = zz.payload(p, prompt, refs, video, entry['generation_frames'])
@@ -573,15 +587,17 @@ class Runner:
         # Recheck after uploads: another process might change any input.
         if validator(project, entry) != digest:
             raise ValueError('Inputs changed during upload')
-        aid = self.ledger.reserve(self.account, project, entry['window_id'], digest,
-                                  entry.get('retry_after'), block_uncertain=True)
-        if not aid:
-            return None
         request={'path':path,'body':body}
+        if kind == 'chenyu-workflow':
+            request['key_fingerprint'] = self.key_fingerprint()
         if quote is not None:
             request['estimate'] = quote
         if entry.get('pilot_scope'):request['pilot_scope']=entry['pilot_scope']
-        self.ledger.update(aid, request=json.dumps(request, ensure_ascii=False))
+        aid = self.ledger.reserve(self.account, project, entry['window_id'], digest,
+                                  entry.get('retry_after'), block_uncertain=True,
+                                  request=json.dumps(request, ensure_ascii=False))
+        if not aid:
+            return None
         try:
             res = self.transport.submit(path, body)
         except ApiFailure as e:
@@ -620,6 +636,9 @@ class Runner:
             if (getattr(self.transport, 'provider', 'rh') == 'zhenzhen'
                     and row['state'] == 'RESULTS_READY' and row['result_url'] and row['receipt']):
                 res = json.loads(row['receipt'])
+            elif getattr(self.transport, 'provider', 'rh') == 'chenyu':
+                intent = json.loads(row['request'])
+                res = self.transport.query(row['task_id'], intent['body']['revision_id'])
             else:
                 res = self.transport.query(row['task_id'])
         except ApiFailure as e:
@@ -665,7 +684,7 @@ class Runner:
         videos = [r for r in results if r.get('url') and (str(r.get('outputType', '')).lower() in ('mp4', 'mov', 'video') or '.mp4' in r['url'].split('?')[0].lower())]
         if len(videos) != 1:
             n = row['missing_results'] + 1
-            self.ledger.update(aid, state='RESULTS_MISSING' if n >= 3 and getattr(self.transport, 'provider', 'rh') != 'zhenzhen' else 'SUCCESS_RESULTS_PENDING',
+            self.ledger.update(aid, state='RESULTS_MISSING' if n >= 3 and getattr(self.transport, 'provider', 'rh') not in ('zhenzhen','chenyu') else 'SUCCESS_RESULTS_PENDING',
                                receipt=json.dumps(res), missing_results=n, next_poll=self.ledger.clock() + 30)
             return
         url = videos[0]['url']
@@ -756,26 +775,40 @@ class Runner:
         return self.ledger.summary(self.account)
 
 
+def replay_chenyu_intent(row, transport):
+    if not row['request']:
+        raise ValueError('No saved Chenyu intent to reconcile')
+    intent = json.loads(row['request'])
+    if (intent.get('key_fingerprint') != hashlib.sha256(transport.key.encode()).hexdigest()
+            or row['state'] not in ('SUBMITTING','SUBMISSION_UNKNOWN') or row['task_id']):
+        raise ValueError('Chenyu recovery needs the original credential and uncertain intent')
+    return transport.submit(intent['path'], intent['body'])['taskId']
+
+
 def main(provider='rh'):
     is_zz = provider == 'zhenzhen'
+    is_cy = provider == 'chenyu'
+    independent = is_zz or is_cy
     transport_type = Transport
+    if is_cy:
+        from chenyu_runner import Transport as transport_type
     if is_zz:
         from zhenzhen_runner import Transport as transport_type
-    ap = argparse.ArgumentParser(description=(transport_type.__module__ + ' character replacement runner' if is_zz else __doc__))
-    ap.add_argument('command', choices=('tick', 'status', 'stop', 'resume', 'recover-unknown', 'visual-failed','pilot-promote') + (('settle',) if is_zz else ()))
+    ap = argparse.ArgumentParser(description=(transport_type.__module__ + ' character replacement runner' if independent else __doc__))
+    ap.add_argument('command', choices=('tick', 'status', 'stop', 'resume', 'recover-unknown', 'visual-failed','pilot-promote') + (('settle',) if independent else ()))
     ap.add_argument('--project', type=Path)
-    ap.add_argument('--ledger', type=Path, default=default_private() / ('zhenzhen.sqlite' if is_zz else 'tasks.sqlite'))
-    ap.add_argument('--key-file', type=Path, default=(codex_home() / 'secrets' / 'seedance_charswap.key' if is_zz else default_key()))
+    ap.add_argument('--ledger', type=Path, default=default_private() / (provider + '.sqlite' if independent else 'tasks.sqlite'))
+    ap.add_argument('--key-file', type=Path, default=(codex_home() / 'secrets' / ('chenyu_workflow.key' if is_cy else 'seedance_charswap.key') if independent else default_key()))
     ap.add_argument('--account', default='default')
     ap.add_argument('--attempt')
     ap.add_argument('--task-id')
     ap.add_argument('--failure-record', type=Path)
     ap.add_argument('--window-id')
     args = ap.parse_args()
-    if args.account.startswith('zhenzhen:'):
+    if args.account.startswith(('zhenzhen:', 'chenyu:')):
         ap.error('Use a plain account alias')
-    if is_zz:
-        args.account = 'zhenzhen:' + args.account
+    if independent:
+        args.account = provider + ':' + args.account
     if args.command=='pilot-promote':
         if not args.project or not args.window_id:ap.error('pilot-promote requires --project and --window-id')
         import pilot_scope
@@ -801,13 +834,14 @@ def main(provider='rh'):
             if not args.project:
                 ap.error('settle requires --project')
             transport = transport_type(args.key_file.read_text(encoding='utf-8-sig').strip())
-            rows = led.db.execute("""SELECT id, task_id, receipt FROM attempts
+            rows = led.db.execute("""SELECT id, task_id, receipt, request FROM attempts
                 WHERE account=? AND project=? AND state IN ('EXECUTION_FAILED','DOWNLOADED','VISUAL_FAILED')
                 AND task_id IS NOT NULL""", (args.account, str(args.project.resolve()))).fetchall()
             for row in rows:
                 usage = (json.loads(row['receipt'] or '{}').get('usage') or {})
                 if usage.get('amount') is None or not usage.get('currency'):
-                    receipt = transport.query(row['task_id'])
+                    receipt = (transport.query(row['task_id'], json.loads(row['request'])['body']['revision_id'])
+                               if is_cy else transport.query(row['task_id']))
                     if receipt['status'] in ('FAILED', 'SUCCESS') and receipt.get('usage'):
                         led.update(row['id'], receipt=json.dumps(receipt))
         elif args.command == 'visual-failed':
@@ -825,11 +859,17 @@ def main(provider='rh'):
             row = led.row(args.attempt)
             if row['account'] != args.account:
                 raise ValueError('Attempt belongs to another account or channel')
-            if row['state'] not in ('SUBMITTING', 'SUBMISSION_UNKNOWN') or not args.task_id:
+            if row['state'] not in ('SUBMITTING', 'SUBMISSION_UNKNOWN') or (not is_cy and not args.task_id):
                 raise ValueError('Only reconcile an uncertain submission with an identified task receipt')
             key = args.key_file.read_text(encoding='utf-8').strip()
             transport = transport_type(key)
-            receipt = transport.query(args.task_id)
+            if is_cy:
+                if args.task_id:
+                    raise ValueError('Use the saved Chenyu intent to recover the original order')
+                args.task_id = replay_chenyu_intent(row, transport)
+                receipt = {'taskId':args.task_id}
+            else:
+                receipt = transport.query(args.task_id)
             if str(receipt.get('taskId', args.task_id)) != args.task_id:
                 raise ValueError('Task query mismatch')
             # Trusted task ID supplied from provider account history; retain original request.

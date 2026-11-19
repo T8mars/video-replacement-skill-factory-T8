@@ -1,6 +1,6 @@
 # 贞贞 AI 渠道
 
-每次收到新人物图时，请用户选择 RunningHub（RH）或贞贞 AI。已明确选用型号 `minimax-h3-comfyui-charswap` 即选定贞贞 AI。续跑时读取该 run 的 `job.json` 和同一私有账本；切换渠道另建 run。
+每次收到新人物图时，请用户选择 RunningHub（RH）、贞贞 AI 或晨羽工作流。已明确选用型号 `minimax-h3-comfyui-charswap` 即选定贞贞 AI。续跑时读取该 run 的 `job.json` 和同一私有账本；切换渠道另建 run。
 
 ## 准备和运行
 

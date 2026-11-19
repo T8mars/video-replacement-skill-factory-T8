@@ -36,6 +36,8 @@ def scope(project,window,profile):
                 if a<=event['source_frame']<b:
                     risks.update(_risks(event.get('risk_class'))+_risks(event.get('risk_classes')))
     route=f.generation_profile(profile)
+    if profile.get('kind')=='chenyu-workflow':
+        route={**route,'pilot_frames':window['generation_frames']}
     if profile.get('kind')=='local-comfyui':
         workflow=f.file_signature(project,profile['workflow_path'])
         route={**route,'actual_workflow_sha256':workflow['sha256']}

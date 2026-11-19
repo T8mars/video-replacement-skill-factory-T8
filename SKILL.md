@@ -19,7 +19,7 @@ description: "视频换角与专属技能工厂：收到新原视频和人物参
 
 首次制作读 [workflow.md](references/workflow.md)，填写JSON/运行脚本读 [schemas.md](references/schemas.md)。专属技能调用优先读自身入口与 `assets/source.json`、`assets/analysis.json`，用 `instantiate` 建立新run，再填本次身份。
 
-收到新人物图时先问「这次走 RunningHub（RH）还是贞贞 AI？」本次已经指定渠道或模型就直接采用。续跑沿用本 run 的渠道及原任务 ID。确认前可离线分析；安装和只换音乐不询问渠道。新 run 用 `factory.py select-channel --project <run> --channel rh` 或 `--channel zhenzhen` 保存选择，再 prepare。贞贞 AI 使用[多图、按帧调用与实扣核算](references/zhenzhen.md)。用户明确使用已有本地 ComfyUI/H3 环境时读 [本地工作流接入](references/local-comfyui.md)：检查本次提供的 API 工作流、实际输入/输出绑定和帧网格；不搜索其他工作流、不安装模型、不冻结私人配置。未提供必要资料才集中澄清，已有制作授权持续有效。当前适配器支持 API 图；UI 图要求同一工作流的 API 导出，不猜控件顺序。不支持的 API 动态节点需明确适配后再用，重复导出不能代替适配。本地采用共享账本串行执行，RH 的3并发目标不套给本地。
+收到新人物图时先问「这次走 RunningHub（RH）、贞贞 AI 还是晨羽工作流？」本次已经指定渠道或模型就直接采用。续跑沿用本 run 的渠道及原任务 ID。确认前可离线分析；安装和只换音乐不询问渠道。新 run 用 `factory.py select-channel --project <run> --channel rh`、`--channel zhenzhen` 或 `--channel chenyu` 保存选择，再 prepare。贞贞 AI 使用[多图、按帧调用与实扣核算](references/zhenzhen.md)。用户明确使用已有本地 ComfyUI/H3 环境时读 [本地工作流接入](references/local-comfyui.md)：检查本次提供的 API 工作流、实际输入/输出绑定和帧网格；不搜索其他工作流、不安装模型、不冻结私人配置。未提供必要资料才集中澄清，已有制作授权持续有效。当前适配器支持 API 图；UI 图要求同一工作流的 API 导出，不猜控件顺序。不支持的 API 动态节点需明确适配后再用，重复导出不能代替适配。本地采用共享账本串行执行，RH 的3并发目标不套给本地。
 
 ## 1.5：复用与费用控制
 
@@ -41,6 +41,8 @@ description: "视频换角与专属技能工厂：收到新原视频和人物参
 5. `rh_runner.py tick` 按查询已知任务→补满已审批执行位→下载的顺序运行，同账户全部工厂项目/候选合计以3个在途生成为工作目标，并发上限也是3。每个新付费请求fresh上传，不跨请求复用临时句柄；原ID恢复不上传、不重投。正常批次调度3个已审批的待做窗口；只剩1～2个问题窗时，为这些修复范围准备3个有实质差异的候选并行比较。按 [workflow.md](references/workflow.md) 建立独立比较run，Codex维护候选与唯一调度，runner只执行已审批queue。已通过且签名未变的窗口冻结；账户任一SUBMITTING/UNKNOWN挡新增，全部通过后停止新增。临时网络恢复不套执行失败3次上限，按 [backends.md](references/backends.md) 等待原ID恢复。
    明确队列满/资源繁忙时自动等待冷却后恢复，按用户要求持续等待；已受理任务沿用原taskId，不因等待重新提交。查询即使写着FAILED，只要返回明确繁忙码，也保留原ID和并发占位，至少60秒后继续查询。
    本地改用 `comfy_runner.py tick` 持续监控；同服务只保留一个执行位，外部队列非空则等待。未知提交按UUID/client_id/提交图与历史唯一对账；已知prompt_id只恢复查询/下载。成功回执持久保存，清历史不要求重生成。准备失败与已开始提交分开记录；仅明确未POST的失败可在修因后同输入重试。输出歧义可在原成功回执内选择同saver真实文件，保留旧候选及选择记录。下载完成仍需后续完整画面验收。
+   晨羽用 `chenyu_runner.py tick`。按角色出场顺序上传 1–5 张身份图与一段运动视频，锁定已核对的工作流版本。受理后按原订单恢复，用平台原始单位核算实扣。见[晨羽配置和命令](references/chenyu.md)。
+
    贞贞 AI 用 `zhenzhen_runner.py tick`，按图逐文件上传并将 URL 依槽位顺序放进同一任务。固定 24fps 时钟按网格补尾，短输入至少 56 帧，合片只取原片拥有的帧。按渠道、账号隔离调度，付费前报价，等待已知 ID；在私有账本记录所有返工。
 6. 媒体解码、连续帧和时间轴核对优先后台完成。用户要求后台处理时不操作桌面。按 [完整输出与可靠修复](references/production-reliability.md) 用candidate_review.py核实际输出到真实末帧，不能以输入帧数、preroll或旧review_frames裁证据；手工native ROI标明角色并实际核覆盖，自动追错人时补框。默认严格nominal-pts映射；确有额外保持/非线性动作时，只在完整当前源姿态及切点证据下显式measured-source-poses，重映射撤销旧visual并绑定新mapping_digest。每段实际保留区间完整原速看，脸/遮挡/手袖/道具及接点原尺寸逐帧看；证据准备、技术、姿态和原速分别记录，不自动视觉通过。
    多人、走位遮挡和道具/服装交接先在源镜头填写 `role_checkpoints`。每次修复对照原图与原片检查全部角色，尤其开头数帧、进出画、手部遮挡及交接后状态。填写 `inspect-candidate` 生成的待查记录，逐点核对人数、道具和相邻衔接，再原速看完整保留区间。

@@ -9,16 +9,18 @@
 > 实际账号权限、可用模型和审核要求以平台当前规则为准。注册入口不会自动切换脚本的接口地址。
 
 **技能标识：** `video-replacement-skill-factory`  
-**当前版本：** `1.6.0`
+**当前版本：** `1.7.0`
 **专属维护仓库：** [T8mars/video-replacement-skill-factory-T8](https://github.com/T8mars/video-replacement-skill-factory-T8)
 
 给 Codex 一个原视频和人物参考图，工厂会分析原片、替换人物、检查并修复画面、组装保留原音轨的成片，再为该原视频创建并安装一个独立、可复用的专属 SKILL。下次使用同一原片，只需更换人物参考图。
 
 按原片实际镜头、已核自然动作及机位阶段切分，每段保留自己的原始长度；不设置固定5秒默认。需要生成的单段源区间与完整生成视频都不得超过10秒，生成时长包含context、preroll、慢速扩展及补齐。超过上限的连续长镜在核对过的动作阶段边界拆分，接回后仍保持原运动连续，不新增切镜。
 
-## 1.6.0 · 选择生成渠道
+## 1.7.0 · 选择生成渠道
 
-把原视频和人物图发给 Codex，告诉它「走 RH」或「走贞贞 AI」即可。没有指定时，工厂会先询问。继续同一项目会沿用已选渠道，下一条原片生成的中文专属技能也带有两个云端入口。已有本地 ComfyUI 工作流仍可选用。
+把原视频和人物图发给 Codex，告诉它「走 RH」「走贞贞 AI」或「走晨羽」即可。没有指定时，工厂会先询问。继续同一项目会沿用已选渠道，下一条原片生成的中文专属技能也带有这三个云端入口。已有本地 ComfyUI 工作流仍可选用。
+
+晨羽使用已发布的「Wuwu-视频角色替换」工作流。它接收一段运动视频和按出场角色排序的 1–5 张参考图。运行器会校验当前版本和参数，断线后可恢复同一订单，并按平台返回的单位结算。[晨羽接入与命令](references/chenyu.md)
 
 贞贞 AI 使用 `minimax-h3-comfyui-charswap`。每个镜头用一段运动视频，按出场角色依次上传 1–9 张参考图。短镜头只在生成输入末尾补帧，原片剪辑点和最终时长按源时间轴保留。账本按任务实扣统计，涵盖试片、正式片段和返工，并按全部实际生成秒数计算单位成本。[配置与运行示例](references/zhenzhen.md)
 
@@ -90,7 +92,7 @@ python scripts/factory.py build-skill --project <run> --display-name "中文内�
 
 ## 安装与运行环境
 
-可从 [Releases](https://github.com/T8mars/video-replacement-skill-factory-T8/releases/latest) 下载 `video-replacement-skill-factory-v1.6.0.zip`，解压后将 `video-replacement-skill-factory` 文件夹交给 Agent 安装。完整包仅含本工厂代码、说明和验证工具，不含私人人物图、视频或凭据。
+可从 [Releases](https://github.com/T8mars/video-replacement-skill-factory-T8/releases/latest) 下载 `video-replacement-skill-factory-v1.7.0.zip`，解压后将 `video-replacement-skill-factory` 文件夹交给 Agent 安装。完整包仅含本工厂代码、说明和验证工具，不含私人人物图、视频或凭据。
 
 需要 Codex 的本地技能能力、Python 3.10+、PyAV、Pillow，以及 PATH 中的 `ffmpeg` / `ffprobe`。离线音频回归还需要 NumPy，已列入requirements.txt。运行时路径可按自己的机器设置，媒体命令支持 `--deps`。Windows 遇到已证实的解码差异时可使用 `--scalar-cpu`，详见技能文档。
 

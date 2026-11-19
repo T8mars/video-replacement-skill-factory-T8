@@ -1,6 +1,6 @@
 {
   "name": "video-replacement-skill-factory",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "created_at": "2026-10-11",
   "purpose": "Deliver a character replacement film and a standalone reusable skill for each new source video.",
   "schema_version": 1,
@@ -83,7 +83,8 @@
     "cost_audit": "Read-only project/account receipts; task-ID deduplication, parent/child overlap detection, unknown fields preserved; no currency conversion",
     "cloud_channels": [
       "RunningHub",
-      "Zhenzhen AI"
+      "Zhenzhen AI",
+      "Chenyu Workflow"
     ],
     "channel_selection": "Ask on a new identity run unless specified; persist the choice and resume the original provider IDs.",
     "zhenzhen": {
@@ -96,13 +97,20 @@
       "min_input_frames": 56,
       "max_input_frames": 226,
       "frame_step": 17
+    },
+    "chenyu": {
+      "profile": "chenyu-workflow",
+      "runner": "scripts/chenyu_runner.py",
+      "documentation": "references/chenyu.md",
+      "ledger": "chenyu.sqlite",
+      "verified_frames": 73
     }
   },
   "validation": {
     "cloud_generation_performed": true,
     "cloud_visual_quality_verified": true,
-    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py; scripts/test_production_ops.py; scripts/test_reliability_upgrade.py; scripts/test_zhenzhen.py",
-    "offline_test_count": 306,
+    "offline_tests": "scripts/test_factory.py; scripts/test_runner.py; scripts/test_identity.py; scripts/test_candidate_review.py; scripts/test_comfy_workflow.py; scripts/test_comfy_runner.py; scripts/test_comfy_http.py; scripts/test_production_ops.py; scripts/test_reliability_upgrade.py; scripts/test_zhenzhen.py; scripts/test_chenyu.py",
+    "offline_test_count": 316,
     "media_and_template_tests": 70,
     "runner_tests": 75,
     "independent_forward_test_completed": true,
@@ -270,6 +278,14 @@
       "new_paid_generations": 0,
       "prior_response_pairs_replayed_offline": 27,
       "includes_standalone_zip_channel_switch": true
+    },
+    "maintenance_1_7": {
+      "runtime_tests": 316,
+      "publication_tests": 11,
+      "chenyu_regressions": 10,
+      "new_paid_generations": 0,
+      "tested_previous_live_workflow_schema": true,
+      "includes_extracted_skill_channel_selection": true
     }
   },
   "source_of_methods": "r2va-character-replacement; verified local production repairs; official MiniMax/RunningHub reference contracts",

@@ -432,6 +432,10 @@ def default_plan(source, analysis, job):
         if selected['kind'] == 'local-comfyui':
             generation_frames = local_frame_count(selected, needed, fps)
             duration = str(Fraction(generation_frames, 1) / fps)
+        elif selected['kind'] == 'chenyu-workflow':
+            from chenyu_runner import frame_count
+            generation_frames = frame_count(needed)
+            duration = str(Fraction(generation_frames, 24))
         elif selected['kind'] == 'zhenzhen-charswap':
             from zhenzhen_runner import frame_count
             generation_frames = frame_count(needed)
@@ -548,7 +552,7 @@ def select_channel(project, channel):
     """Configure a fresh run and re-project inherited ownership onto the selected clock."""
     project = Path(project)
     profiles = read(Path(__file__).resolve().parent.parent/'assets/backend-profiles.json')['profiles']
-    key = {'rh': 'legacy-one', 'rh-standard': 'standard-h3', 'zhenzhen': 'zhenzhen-charswap'}[channel]
+    key = {'rh': 'legacy-one', 'rh-standard': 'standard-h3', 'zhenzhen': 'zhenzhen-charswap', 'chenyu': 'chenyu-workflow'}[channel]
     job = read(project/'job.json')
     if job.get('channel') == channel:
         return {'channel': channel, 'reused': True}
@@ -573,7 +577,10 @@ def select_channel(project, channel):
                 window['preroll_frames'] = preroll
             needed = media.project_frames(source['video'], window['context_interval'], fps,
                 preroll_frames=preroll, source_time_scale=window.get('source_time_scale','1'))['content_frames'] + preroll
-            if channel == 'zhenzhen':
+            if channel == 'chenyu':
+                from chenyu_runner import frame_count
+                frames = frame_count(needed)
+            elif channel == 'zhenzhen':
                 from zhenzhen_runner import frame_count
                 frames = frame_count(needed)
             elif channel == 'rh':
@@ -597,7 +604,7 @@ def prepare(project, deps=None, scalar_cpu=False, approve_semantics=False,approv
     source, analysis = validate_analysis(project)
     job = read(project / 'job.json')
     profile = job['profile']
-    if any(shot['roles'] for shot in analysis['shots']) and profile.get('kind') not in ('legacy-ai-app', 'standard-h3', 'local-comfyui', 'zhenzhen-charswap'):
+    if any(shot['roles'] for shot in analysis['shots']) and profile.get('kind') not in ('legacy-ai-app', 'standard-h3', 'local-comfyui', 'zhenzhen-charswap', 'chenyu-workflow'):
         raise ValueError('Select a documented backend profile')
     if (project / 'plan.json').exists():
         plan = read(project / 'plan.json')
@@ -627,6 +634,9 @@ def prepare(project, deps=None, scalar_cpu=False, approve_semantics=False,approv
             raise ValueError('Backend cannot accept this window identity reference count')
         if not set(slots).issubset(job['references']):
             raise ValueError('Missing reference images for source roles')
+        if profile['kind'] == 'chenyu-workflow':
+            from chenyu_runner import validate_window
+            validate_window(profile, window, slots)
         if profile['kind'] == 'zhenzhen-charswap':
             from zhenzhen_runner import validate_window
             validate_window(profile, window, slots)
@@ -668,7 +678,7 @@ def prepare(project, deps=None, scalar_cpu=False, approve_semantics=False,approv
             write(cache_path, {'contract_digest': derived_contract, 'file_signature': media.signature(derived),
                                'report': report, 'padding_frames': window['source_projection']['padding_frames'],
                                'audio_is_derived': True})
-        if job.get('joint_role_review') or profile['kind'] == 'zhenzhen-charswap':
+        if job.get('joint_role_review') or profile['kind'] in ('zhenzhen-charswap','chenyu-workflow'):
             from role_review import expectations
             expectations(analysis, window)
         prompt, bindings = compile_prompt(source, analysis, {**job,'profile':profile}, window)
@@ -853,7 +863,7 @@ def review_guard(project, final=False, window_ids=None):
             not entry['source_projection_review'].get('loss_disclosed')):
             raise ValueError('Derived source sampling requires explicit temporal-loss review')
         record = reviews['windows'][wid]
-        if read(project/'job.json').get('joint_role_review') or entry['profile']['kind'] == 'zhenzhen-charswap':
+        if read(project/'job.json').get('joint_role_review') or entry['profile']['kind'] in ('zhenzhen-charswap','chenyu-workflow'):
             from role_review import validate as validate_roles
             validate_roles(analysis, windows[wid], record)
         if record.get('input_digest') != entry['input_digest'] or not record.get('task_id'):
@@ -950,7 +960,7 @@ def inspect_candidate(project,window_id,task_id,candidate,deps=None,scalar_cpu=F
             'retained_output_interval':[min(mapping),max(mapping)+1],'source_to_output':mapping,
             'temporal_mapping_review':{'status':'pending','resampling_loss_disclosed':len(set(mapping))!=len(mapping),
                                        'notes':'Nearest-PTS proposal only; Codex must check source action timing.'}}
-    if read(project/'job.json').get('joint_role_review') or entry['profile']['kind'] == 'zhenzhen-charswap':
+    if read(project/'job.json').get('joint_role_review') or entry['profile']['kind'] in ('zhenzhen-charswap','chenyu-workflow'):
         from role_review import pending
         record['role_review'] = pending(analysis, window, record)
     reviews=read(project/'reviews.json') if (project/'reviews.json').exists() else {'windows':{}}
@@ -1121,7 +1131,7 @@ def neutral_local_profiles(plan):
     """Source ownership is reusable; a user's local workflow and machine settings are not."""
     plan = copy.deepcopy(plan)
     for window in plan.get('windows', []):
-        if window.get('profile_override', {}).get('kind') in ('local-comfyui','zhenzhen-charswap'):
+        if window.get('profile_override', {}).get('kind') in ('local-comfyui','zhenzhen-charswap','chenyu-workflow'):
             window.pop('profile_override')
     return plan
 
@@ -1140,7 +1150,7 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
                 continue
             if isinstance(payload,dict) and payload.get('kind') in (
                 'complete-output-evidence','independent-canonical-rgb-pts','reviewed-postprocessed-film',
-                'media-technical-cache','assembly-silent-proof','encoding-smoke','rh-cost-audit','zhenzhen-cost-audit','pilot-scope-approvals'):
+                'media-technical-cache','assembly-silent-proof','encoding-smoke','rh-cost-audit','zhenzhen-cost-audit','chenyu-cost-audit','pilot-scope-approvals'):
                 raise ValueError('Current-run candidate/delivery evidence cannot enter a source-only skill; preserve it outside source evidence')
     if status == 'ready':
         if delivery_review:
@@ -1249,8 +1259,9 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             'reuse old references only when the human explicitly requests it. Do not freeze previous clothes or identities.\n\n'
             '按原片实际镜头及自然动作阶段切分；需要生成的单段源区间和完整生成视频均不得超过10秒，无目标镜头原样保留不受此限，生成时长包含context、preroll、慢速扩展和尾部补齐。'
             '短镜头保持其实际长度，不设置固定5秒默认；超过10秒的连续长镜在经核对的动作阶段边界拆分，组装仍保持原片连续运动。\n\n'
-            '每轮收到新身份图先确认 RunningHub（RH）或贞贞 AI；用户已点名就直接采用，续跑沿用原渠道。'
-            '新run先执行 factory.py select-channel --project <run> --channel rh 或 zhenzhen，再 prepare。'
+            '每轮收到新身份图先确认 RunningHub（RH）、贞贞 AI 或晨羽工作流；用户已点名就直接采用，续跑沿用原渠道。'
+            '新run先执行 factory.py select-channel --project <run> --channel 后选 rh、zhenzhen 或 chenyu，再 prepare。'
+            '晨羽用 scripts/chenyu_runner.py，按 references/chenyu.md 上传、恢复与结算。'
             '贞贞 AI 使用 scripts/zhenzhen_runner.py，见 references/zhenzhen.md；交付时按币种核实全部候选实扣及实际生成秒数。'
             '所有候选按源角色槽位核对人数、遮挡、道具和服装交接，填写逐帧观测并检查相邻镜头。\n\n'
             'RunningHub有已授权且已审批的待生成工作时，同账户以3个在途生成为目标，上限也是3。本地ComfyUI按同一服务共享账本串行，运行方法见references/local-comfyui.md。普通云端批次并行3个待做窗口；'
@@ -1261,10 +1272,10 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             '媒体检查优先后台完成；用户要求后台时不操作桌面播放器或鼠标键盘。完整连续帧审核与实际原速播放分别记录，'
             '后台源帧/PTS和身份观察可用于输入审批，不能虚构动态通过或放宽最终ready门槛。\n\n'
             '本轮身份/外观/风险路线的试片审批必须重新绑定；实际验收后运行python scripts/rh_runner.py pilot-promote记录试片放批。'
-            'RH费用用scripts/cost_audit.py，贞贞 AI 用scripts/zhenzhen_cost.py并列入所有修复run，实扣与待结算分开；合片仅复用有完整证明的silent，不续写partial。\n\n'
+            'RH费用用scripts/cost_audit.py，贞贞 AI 与晨羽用scripts/zhenzhen_cost.py，晨羽加 --provider chenyu 并列入所有修复run，实扣与待结算分开；合片仅复用有完整证明的silent，不续写partial。\n\n'
             'Create a new run outside this skill folder. Run scripts/factory.py instantiate --skill <absolute-skill-folder> --project <run-directory>. '
             'Then provide job.json references/profile, '
-            'run prepare, personally approve prompt semantics, use the included rh_runner.py (RunningHub), zhenzhen_runner.py (Zhenzhen AI) or comfy_runner.py (optional local ComfyUI) for the authorized production run, '
+            'run prepare, personally approve prompt semantics, use the included rh_runner.py (RunningHub), zhenzhen_runner.py (Zhenzhen AI), chenyu_runner.py (Chenyu Workflow) or comfy_runner.py (optional local ComfyUI) for the authorized production run, '
             'inspect candidates at natural speed and risk frames at native resolution, write version-bound reviews, assemble, '
             'and inspect the final before delivery. Read references/workflow.md and references/quality-and-repair.md when present.\n\n'
             +('Read [original-photo identity correction](references/identity-correction.md) if likeness fails. '
@@ -1292,6 +1303,7 @@ def build_skill(project, skills_root, status='draft', display_name=None, deliver
             'hard_max_complete_generation_seconds':10,'default_fixed_segment_seconds':None,
             'account_concurrency_target':3,'account_concurrency_cap':3,
             'complete_output_evidence_runtime':(scripts/'candidate_review.py').exists(),
+            'chenyu_workflow_runtime':(scripts/'chenyu_runner.py').exists(),
             'zhenzhen_charswap_runtime':(scripts/'zhenzhen_runner.py').exists(),
             'joint_role_review_runtime':(scripts/'role_review.py').exists(),
             'optional_local_comfyui_runtime':(scripts/'comfy_runner.py').exists(),
@@ -1363,7 +1375,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=['ingest','validate-analysis','prepare','review-guard','assemble','build-skill','recover-install','instantiate','inspect-candidate','refresh-plan','select-channel'])
     parser.add_argument('--project')
-    parser.add_argument('--channel', choices=['rh','rh-standard','zhenzhen'])
+    parser.add_argument('--channel', choices=['rh','rh-standard','zhenzhen','chenyu'])
     parser.add_argument('--video')
     parser.add_argument('--skill')
     parser.add_argument('--window-id')

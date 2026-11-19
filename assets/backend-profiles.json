@@ -8,8 +8,16 @@
       "resolution": "1088p",
       "ratio": "auto",
       "quality_evidence": "requires-current-pilot",
-      "limits": {"fps": ["24"], "identity_slots": 9},
-      "evidence": {"url": "https://api.seedance.nz/docs/llms.txt", "scope": "Published file and frame contract; two-second motion input minimum observed in production"}
+      "limits": {
+        "fps": [
+          "24"
+        ],
+        "identity_slots": 9
+      },
+      "evidence": {
+        "url": "https://api.seedance.nz/docs/llms.txt",
+        "scope": "Published file and frame contract; two-second motion input minimum observed in production"
+      }
     },
     "legacy-one": {
       "kind": "legacy-ai-app",
@@ -113,6 +121,23 @@
         "checked_at": "2026-10-11",
         "url": "https://www.runninghub.ai/runninghub-api-doc-en/api-495380675.md",
         "scope": "API input contract; actual output frame axis and replacement quality require case review."
+      }
+    },
+    "chenyu-workflow": {
+      "kind": "chenyu-workflow",
+      "workflow_id": "wf_04a30714468c59fd78f5",
+      "revision_id": "wfr_ff47d851972485d1a6a0",
+      "output_name": "result_168_gifs_1",
+      "limits": {
+        "fps": [
+          "24"
+        ],
+        "identity_slots": 5
+      },
+      "quality_evidence": "pilot-required",
+      "evidence": {
+        "date": "2026-11-19",
+        "scope": "Published workflow manifest and one verified two-reference, 73-frame output at 24 fps."
       }
     }
   }

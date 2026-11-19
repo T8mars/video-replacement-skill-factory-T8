@@ -12,7 +12,9 @@ import media
 from rh_runner import default_private
 
 
-def audit(projects, ledger, account='default'):
+def audit(projects, ledger, account='default', provider='zhenzhen'):
+    if provider not in ('zhenzhen','chenyu'):
+        raise ValueError('Unsupported settlement ledger')
     projects = sorted({str(Path(p).resolve()) for p in projects})
     groups = defaultdict(list)
     pending = []
@@ -21,7 +23,7 @@ def audit(projects, ledger, account='default'):
     try:
         for project in projects:
             for row in db.execute('SELECT * FROM attempts WHERE account=? AND project=?',
-                                  ('zhenzhen:' + account, project)):
+                                  (provider + ':' + account, project)):
                 if row['task_id']:
                     groups[row['task_id']].append(dict(row))
                 elif row['state'] in ('SUBMITTING','SUBMISSION_UNKNOWN'):
@@ -77,7 +79,7 @@ def audit(projects, ledger, account='default'):
     complete = bool(groups) and not pending
     rates = {cur: money(value * Decimal(seconds[cur].denominator) / Decimal(seconds[cur].numerator))
              for cur, value in amounts.items() if seconds[cur]} if complete and generated else None
-    return {'kind':'zhenzhen-cost-audit', 'accepted_unique_tasks':len(groups),
+    return {'kind':provider+'-cost-audit', 'accepted_unique_tasks':len(groups),
             'known_amounts':{k:money(v) for k,v in amounts.items()}, 'settled':complete,
             'measured_generated_seconds':str(generated),
             'seconds_by_currency':{k:str(v) for k,v in seconds.items()},
@@ -87,7 +89,8 @@ def audit(projects, ledger, account='default'):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', action='append', required=True)
-    parser.add_argument('--ledger', type=Path, default=default_private()/'zhenzhen.sqlite')
+    parser.add_argument('--provider', choices=('zhenzhen','chenyu'), default='zhenzhen')
+    parser.add_argument('--ledger', type=Path)
     parser.add_argument('--account', default='default')
     args = parser.parse_args()
-    print(json.dumps(audit(args.project, args.ledger, args.account), indent=2, ensure_ascii=False))
+    print(json.dumps(audit(args.project, args.ledger or default_private()/(args.provider+'.sqlite'), args.account, args.provider), indent=2, ensure_ascii=False))

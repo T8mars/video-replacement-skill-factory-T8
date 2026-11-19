@@ -44,7 +44,10 @@
     "scripts/role_review.py",
     "scripts/replace_music.py",
     "scripts/test_zhenzhen.py",
-    "references/zhenzhen.md"
+    "references/zhenzhen.md",
+    "references/chenyu.md",
+    "scripts/chenyu_runner.py",
+    "scripts/test_chenyu.py"
   ],
   "repository_files": [
     ".gitignore",
